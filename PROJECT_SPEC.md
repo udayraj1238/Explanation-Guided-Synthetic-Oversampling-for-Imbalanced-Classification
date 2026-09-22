@@ -353,3 +353,16 @@ boxplot_<metric>.png — one per metric, boxplot of scores across the 6 methods 
 pca_synthetic_comparison.png — 2D PCA scatter (fit PCA on real data, project both real and synthetic points) comparing standard SMOTE's synthetic points vs. AC-SMOTE's synthetic points, for 2 illustrative low-dimensional datasets (suggest ecoli and wine_quality)
 ablation_beta_sweep.png — line plot of F1/AUC-PR vs. beta, from ablation_results.csv
 runtime_comparison.png — bar chart of mean fit_time_seconds per resampler, pooled across datasets — this is the figure that honestly shows AC-SMOTE's SHAP-computation overhead vs. baselines; report it plainly, don't hide it.
+
+11. Day-by-Day / Hour-by-Hour Schedule
+Assumes an ~8-hour working day. If your actual available hours differ, keep the order and content of tasks identical and compress/stretch the hour numbers to fit your real schedule — do not skip steps to save time; skip breadth (e.g., fewer ablation datasets) instead, per Section 15.
+
+DAY 1 — Tuesday, Sept 22 (today): Setup + Verified Data
+Hour 1: Complete Section 3 (environment setup) end-to-end. Confirm ALL IMPORTS OK prints.
+Hour 2: Create the exact folder structure from Section 4. Copy this entire document into ac-smote-paper/PROJECT_SPEC.md. Open https://www.cict2026.iiitk.ac.in/Guidelines.html yourself and confirm/correct Section 2's page-limit and abstract-length numbers.
+Hour 3: Manually download the 2 Kaggle datasets (Section 5.2) into data/raw/.
+Hour 4–5: Implement data_loader.py (Section 10). Implement and run verify_and_update_manifest(). Confirm data/dataset_manifest.json now has real, non-null numbers for all 10 datasets.
+Hour 6: Implement utils.py's compute_all_metrics and set_all_seeds. Write a throwaway script that loads one dataset, does a single train/test split, fits LogisticRegression with no resampling, and prints all 5 metrics — this is your smoke test that the basic pipeline works before anything novel is built on top of it.
+Hour 7: Implement baselines.py (Section 7) — this is thin wrapping of imblearn classes, should be quick.
+Hour 8: Re-run the smoke test, this time looping over none, ros, smote, bsmote, adasyn on one dataset with one classifier, printing all 5 metrics for each. Confirm all 5 run without errors and produce sane-looking numbers (F1/AUC-PR/MCC/G-mean/balanced-accuracy all between 0 and 1, none of them exactly 0 or exactly 1 across the board — that would indicate a bug).
+✅ Checkpoint before moving to Day 2: dataset_manifest.json fully populated with real numbers; smoke test runs 5 baseline resamplers end-to-end on real data with sane metrics.

@@ -1,0 +1,64 @@
+{
+  "ecoli": {
+    "source": "imblearn",
+    "n_samples": 336,
+    "n_features": 7,
+    "ratio": "8.60:1"
+  },
+  "satimage": {
+    "source": "imblearn",
+    "n_samples": 6435,
+    "n_features": 36,
+    "ratio": "9.28:1"
+  },
+  "spectrometer": {
+    "source": "imblearn",
+    "n_samples": 531,
+    "n_features": 93,
+    "ratio": "10.80:1"
+  },
+  "car_eval_34": {
+    "source": "imblearn",
+    "n_samples": 1728,
+    "n_features": 21,
+    "ratio": "11.90:1"
+  },
+  "oil": {
+    "source": "imblearn",
+    "n_samples": 937,
+    "n_features": 49,
+    "ratio": "21.85:1"
+  },
+  "wine_quality": {
+    "source": "imblearn",
+    "n_samples": 4898,
+    "n_features": 11,
+    "ratio": "25.77:1"
+  },
+  "mammography": {
+    "source": "imblearn",
+    "n_samples": 11183,
+    "n_features": 6,
+    "ratio": "42.01:1"
+  },
+  "abalone_19": {
+    "source": "imblearn",
+    "n_samples": 4177,
+    "n_features": 10,
+    "ratio": "129.53:1"
+  },
+  "creditcard": {
+    "source": "kaggle:mlg-ulb/creditcardfraud",
+    "path": "data/raw/creditcard.csv",
+    "n_samples": 284807,
+    "n_features": 29,
+    "ratio": "577.88:1"
+  },
+  "telco_churn": {
+    "source": "kaggle:blastchar/telco-customer-churn",
+    "path": "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv",
+    "n_samples": 7043,
+    "n_features": 30,
+    "ratio": "2.77:1"
+  }
+}

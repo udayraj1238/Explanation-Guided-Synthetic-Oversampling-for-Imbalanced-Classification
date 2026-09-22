@@ -288,3 +288,68 @@ Save everything to results/statistical_tests.json, structured as:
   "wilcoxon_acsmote_vs_baseline": {"logreg": {"smote": {"stat": ..., "p": ..., "wins": ..., "losses": ..., "ties": ...}, ...}, ...}
 }
 Honesty rule: if AC-SMOTE does not significantly beat a baseline on some metric/classifier combination, report that plainly in the results table rather than omitting that combination. A results table with some non-significant cells, honestly labeled, is normal and expected in this literature — it is not a flaw, and hiding it would be.
+
+10. Code Architecture — File by File
+This is the exact blueprint. Antigravity should implement these files in this order (matches Section 11's schedule). Every function signature below is fixed; internal implementation details are Antigravity's to fill in.
+
+src/data_loader.py
+
+def load_dataset(name: str) -> tuple[np.ndarray, np.ndarray]:
+    """
+    name: one of the 10 keys in dataset_manifest.json.
+    Returns X (n_samples, n_features) float array, y (n_samples,) int array with
+    1 = minority class, 0 = majority class. Handles imblearn.fetch_datasets()
+    lookups for the 8 imblearn keys, and CSV loading + cleaning (including
+    one-hot encoding of categoricals and dropping ID columns) for 'creditcard'
+    and 'telco_churn'.
+    """
+
+def load_all_datasets() -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Convenience wrapper: calls load_dataset for all 10 manifest entries."""
+
+def verify_and_update_manifest() -> None:
+    """
+    Loads every dataset once, computes actual n_samples, n_features, and
+    minority:majority ratio, and overwrites the null fields in
+    data/dataset_manifest.json with the real measured values. Run this once,
+    on Day 1, before anything else touches the data.
+    """
+src/utils.py
+
+def weighted_distance_matrix(X_min: np.ndarray, w_hat: np.ndarray, alpha: float) -> np.ndarray:
+    """Returns the n_min x n_min matrix of d_w distances defined in Section 6.2 Step 2."""
+
+def compute_all_metrics(y_true, y_pred, y_score) -> dict:
+    """Returns {'f1':..., 'auc_pr':..., 'mcc':..., 'gmean':..., 'bal_acc':...} per Section 8."""
+
+def set_all_seeds(seed: int) -> None:
+    """Seeds numpy, python's random module, and anything else with its own RNG."""
+src/methods/ac_smote.py — implements the ACSMOTE class exactly per Section 6.3, plus the Step-1/2/3 helper functions it calls internally, plus the alpha=0, beta=0 sanity-check test described in Section 6.2.
+
+src/methods/baselines.py — implements get_resampler(name, random_state) and get_classifier(name, random_state) exactly per Section 7's tables.
+
+src/experiment.py
+
+def run_single_cell(X, y, dataset_name, classifier_name, resampler_name,
+                     cv_splitter, random_state) -> list[dict]:
+    """
+    Runs the full CV loop for one (dataset, classifier, resampler) combination.
+    For each of the 15 splits: split first, fit resampler on train fold only
+    (skip this step entirely if resampler_name == 'none'), fit classifier on
+    the resampled train fold, evaluate on the untouched original test fold.
+    Returns one dict per fold matching the raw_results.csv schema (Section 8),
+    each also tagged with dataset/classifier/resampler/fold_id.
+    """
+src/run_all_experiments.py — the main driver. Loops over all 10 × 3 × 6 combinations, calls run_single_cell for each, and appends results to results/raw_results.csv immediately after each cell completes (checkpointing per Section 8). Prints a running progress bar (tqdm) and an ETA.
+
+src/run_ablation.py — separate driver for the beta/alpha/k sweep (Section 6.4), run on the XGBoost classifier only, on a representative subset of 5 datasets (pick a spread: 1 mild-imbalance, 1 moderate, 1 severe, plus the two Kaggle sets) to keep runtime down. Writes to results/ablation_results.csv.
+
+src/statistical_tests.py — implements exactly the four steps in Section 9, reading from results/raw_results.csv and writing results/statistical_tests.json and results/summary_table.csv (the mean ± std per dataset/classifier/resampler/metric — this table is close to a direct copy into the paper).
+
+src/make_figures.py — generates, and saves as separate files into results/figures/:
+
+critical_difference_diagram.png — from the Nemenyi results (Section 9)
+boxplot_<metric>.png — one per metric, boxplot of scores across the 6 methods (pooled across datasets, one figure per classifier or faceted)
+pca_synthetic_comparison.png — 2D PCA scatter (fit PCA on real data, project both real and synthetic points) comparing standard SMOTE's synthetic points vs. AC-SMOTE's synthetic points, for 2 illustrative low-dimensional datasets (suggest ecoli and wine_quality)
+ablation_beta_sweep.png — line plot of F1/AUC-PR vs. beta, from ablation_results.csv
+runtime_comparison.png — bar chart of mean fit_time_seconds per resampler, pooled across datasets — this is the figure that honestly shows AC-SMOTE's SHAP-computation overhead vs. baselines; report it plainly, don't hide it.

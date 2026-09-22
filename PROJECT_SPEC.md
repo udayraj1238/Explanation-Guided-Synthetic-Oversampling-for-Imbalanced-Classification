@@ -233,3 +233,58 @@ beta (interpolation constraint)	0.7	0, 0.3, 0.5, 0.7, 1.0
 alpha (neighbor weighting)	2.0	0, 1, 2, 4
 k (neighbors)	5	3, 5, 7
 The beta sweep is the most important one for the paper's story: beta=0 isolates "does attribution-weighted neighbor selection alone help?" and increasing beta shows whether the constrained-interpolation piece adds anything on top. This ablation directly supports the novelty claim, so don't skip it even under time pressure.
+
+7. Baselines
+Implement all of these behind one factory function so experiment.py never has special-case logic per method:
+
+# src/methods/baselines.py
+def get_resampler(name: str, random_state: int):
+    """
+    name in {'none', 'ros', 'smote', 'bsmote', 'adasyn', 'acsmote'}
+    Returns an object with .fit_resample(X, y) -> (X_res, y_res),
+    or None for 'none' (meaning: use the raw imbalanced training fold as-is).
+    """
+name	Implementation
+none	No resampling — train directly on the imbalanced fold. This is the "why bother" baseline.
+ros	imblearn.over_sampling.RandomOverSampler(random_state=random_state)
+smote	imblearn.over_sampling.SMOTE(random_state=random_state)
+bsmote	imblearn.over_sampling.BorderlineSMOTE(random_state=random_state)
+adasyn	imblearn.over_sampling.ADASYN(random_state=random_state)
+acsmote	src.methods.ac_smote.ACSMOTE(random_state=random_state) (defaults from Section 6.4)
+Classifiers (also behind a factory, get_classifier(name, random_state)):
+
+name	Implementation
+logreg	sklearn.linear_model.LogisticRegression(max_iter=1000, random_state=random_state)
+rf	sklearn.ensemble.RandomForestClassifier(n_estimators=200, random_state=random_state)
+xgb	xgboost.XGBClassifier(n_estimators=200, use_label_encoder=False, eval_metric='logloss', random_state=random_state)
+8. Experimental Protocol
+The single most important correctness rule in this entire project: resampling must be fit only on the training fold, never on the test fold, and never on the full dataset before splitting. If you resample before splitting, or resample the test fold, synthetic points derived from test-fold information leak into training and every number in your results table becomes invalid — this is the single most common mistake in imbalance-learning papers and the fastest way to get desk-rejected if a reviewer notices, or worse, to publish a paper with wrong numbers. Antigravity must implement the CV loop so that for every fold: split first, fit the resampler on the train portion only, transform the train portion, fit the classifier on the resampled train portion, and evaluate on the original, untouched, un-resampled test portion.
+
+Cross-validation: sklearn.model_selection.RepeatedStratifiedKFold(n_splits=5, n_repeats=3, random_state=42) — 15 total train/test splits per (dataset, classifier, resampler) combination. Stratified so class balance is preserved in every fold's test portion; repeated so the mean metric estimate per cell is stable.
+
+Metrics (compute all five for every fold, store all of them):
+
+F1-score of the minority class: sklearn.metrics.f1_score(y_true, y_pred, pos_label=minority_label)
+Average precision / AUC-PR: sklearn.metrics.average_precision_score(y_true, y_score) (use predicted probability, not hard label)
+Matthews Correlation Coefficient: sklearn.metrics.matthews_corrcoef(y_true, y_pred)
+G-mean: imblearn.metrics.geometric_mean_score(y_true, y_pred)
+Balanced accuracy: sklearn.metrics.balanced_accuracy_score(y_true, y_pred)
+Full experiment grid: 10 datasets × 3 classifiers × 6 resamplers × 15 CV splits = 2,700 total model fits. Every dataset here is small-to-medium (largest is the 284,807-row Credit Card Fraud set) and every model is lightweight — on a laptop CPU this should complete in at most a few hours, likely less. Treat this as a background batch job you can start and walk away from (Section 11, Day 3).
+
+Output schema — results/raw_results.csv, one row per fold:
+
+dataset, classifier, resampler, fold_id, f1, auc_pr, mcc, gmean, bal_acc, fit_time_seconds
+Checkpointing (mandatory, given the multi-hour unattended run): run_all_experiments.py must append each completed row to the CSV immediately, and on startup must check which (dataset, classifier, resampler, fold_id) combinations already exist in the CSV and skip them. This means the script is safely restartable if your laptop sleeps, a package throws an error partway through, or you need to stop and resume across two days.
+
+9. Statistical Testing Plan
+Do not report only mean scores — a reviewer in this space will expect significance testing, and it strengthens the paper regardless. Implement in src/statistical_tests.py:
+
+Per classifier, per metric: run a Friedman test (scipy.stats.friedmanchisquare) across the 6 resampling methods, using each dataset's mean score (averaged over the 15 folds) as one "block." This tests whether the 6 methods differ significantly at all, across the 10 datasets.
+If the Friedman test is significant (p < 0.05): run a Nemenyi post-hoc test (scikit_posthocs.posthoc_nemenyi_friedman) to see which specific pairs of methods differ, and produce a critical-difference diagram (standard in ML benchmarking papers, and a good, reviewer-recognizable figure — scikit_posthocs can generate this directly, or use sign_plot).
+Pairwise, AC-SMOTE vs. each baseline individually: run a Wilcoxon signed-rank test (scipy.stats.wilcoxon) on the 10 paired per-dataset mean scores (AC-SMOTE's score vs. that baseline's score, one pair per dataset). Report the test statistic, p-value, and how many datasets favored each side.
+Save everything to results/statistical_tests.json, structured as:
+{
+  "friedman": {"logreg": {"f1": {"stat": ..., "p": ...}, "auc_pr": {...}, ...}, "rf": {...}, "xgb": {...}},
+  "wilcoxon_acsmote_vs_baseline": {"logreg": {"smote": {"stat": ..., "p": ..., "wins": ..., "losses": ..., "ties": ...}, ...}, ...}
+}
+Honesty rule: if AC-SMOTE does not significantly beat a baseline on some metric/classifier combination, report that plainly in the results table rather than omitting that combination. A results table with some non-significant cells, honestly labeled, is normal and expected in this literature — it is not a flaw, and hiding it would be.

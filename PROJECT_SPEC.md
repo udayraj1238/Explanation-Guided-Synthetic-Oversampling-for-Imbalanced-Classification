@@ -366,3 +366,11 @@ Hour 6: Implement utils.py's compute_all_metrics and set_all_seeds. Write a thro
 Hour 7: Implement baselines.py (Section 7) — this is thin wrapping of imblearn classes, should be quick.
 Hour 8: Re-run the smoke test, this time looping over none, ros, smote, bsmote, adasyn on one dataset with one classifier, printing all 5 metrics for each. Confirm all 5 run without errors and produce sane-looking numbers (F1/AUC-PR/MCC/G-mean/balanced-accuracy all between 0 and 1, none of them exactly 0 or exactly 1 across the board — that would indicate a bug).
 ✅ Checkpoint before moving to Day 2: dataset_manifest.json fully populated with real numbers; smoke test runs 5 baseline resamplers end-to-end on real data with sane metrics.
+
+DAY 2 — Wednesday, Sept 23: Implement AC-SMOTE
+Hour 1–2: Implement Section 6.2 Step 1 (surrogate model + SHAP importance vector w_hat) as its own testable function. Verify w_hat is length-d, all values in [0, 1].
+Hour 3–4: Implement Section 6.2 Step 2 (weighted_distance_matrix in utils.py, then k-NN lookup on top of it, restricted to the minority class).
+Hour 5–6: Implement Section 6.2 Step 3 (constrained interpolation) and wire all three steps together into the ACSMOTE class (Section 6.3).
+Hour 7: Implement and run the alpha=0, beta=0 sanity check described in Section 6.2 — confirm AC-SMOTE's output distribution matches plain SMOTE's under those settings.
+Hour 8: Run ACSMOTE with default hyperparameters (Section 6.4) on all 10 datasets in a quick loop, confirming no errors/NaNs/exploding values, and eyeball a quick PCA scatter of one dataset's synthetic points to sanity-check they look reasonable (roughly within the real data's range, not degenerate/collapsed to a point).
+✅ Checkpoint: ACSMOTE.fit_resample() runs cleanly on every dataset; sanity check passes; output looks visually reasonable on at least one dataset.

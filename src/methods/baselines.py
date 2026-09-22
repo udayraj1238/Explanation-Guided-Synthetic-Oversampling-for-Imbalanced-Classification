@@ -20,12 +20,8 @@ def get_resampler(name: str, random_state: int):
     elif name == 'adasyn':
         return ADASYN(random_state=random_state)
     elif name == 'acsmote':
-        # Will be implemented fully on Day 2
-        try:
-            from src.methods.ac_smote import ACSMOTE
-            return ACSMOTE(random_state=random_state)
-        except ImportError:
-            raise NotImplementedError("ACSMOTE is not yet implemented.")
+        from src.methods.ac_smote import ACSMOTE
+        return ACSMOTE(random_state=random_state)
     else:
         raise ValueError(f"Unknown resampler: {name}")
 

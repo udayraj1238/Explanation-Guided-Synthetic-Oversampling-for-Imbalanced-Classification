@@ -60,3 +60,82 @@ Plagiarism-checked against IEEE policy
 You must select one track at submission time — select Track 1: AI, ML & Data Analytics
 Template: official IEEE conference template (LaTeX "IEEEtran" or MS Word), downloadable from https://www.ieee.org/conferences/publishing/templates.html and/or linked directly from the CICT-2026 guidelines page
 Action item for Day 1, Hour 1: open the CICT-2026 guidelines page yourself, confirm page limit / abstract length / template link, and update this section if anything differs. Do not skip this — formatting violations are grounds for desk rejection before anyone even reads your novelty claim.
+
+3. Environment Setup (Windows, your laptop, CPU-only — no GPU needed)
+Important reassurance: this entire project is intentionally designed to need zero GPU. Everything runs on tabular data with classical/lightweight models (Logistic Regression, Random Forest, XGBoost) and CPU-based SHAP (TreeExplainer, which is fast and exact for tree models — not the slow KernelExplainer). Your RTX 3050 will sit idle for this whole project, and that's fine — it removes an entire category of risk (driver issues, CUDA versions, OOM errors) from an 8-day plan.
+
+Open PowerShell and run these commands in order:
+
+# 1. Check Python version (need 3.10 or 3.11). If missing, install from python.org.
+python --version
+
+# 2. Create the project folder
+mkdir C:\Users\uday\ac-smote-paper
+cd C:\Users\uday\ac-smote-paper
+
+# 3. Create and activate a virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# If PowerShell blocks the activation script with an execution-policy error, run this once:
+# Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+# then re-run the Activate.ps1 line above.
+
+# 4. Upgrade pip
+python -m pip install --upgrade pip
+
+# 5. Install every package this project needs, pinned loosely (exact patch version doesn't matter)
+pip install numpy pandas scikit-learn imbalanced-learn xgboost shap matplotlib seaborn scipy statsmodels scikit-posthocs tqdm jupyter
+Verify the install worked:
+
+python -c "import numpy, pandas, sklearn, imblearn, xgboost, shap, matplotlib, seaborn, scipy, statsmodels, scikit_posthocs; print('ALL IMPORTS OK')"
+If that prints ALL IMPORTS OK, environment setup is done. If any import fails, the error will name the missing package — pip install <that package> and re-run the check.
+
+Note for Antigravity: replace C:\Users\uday\ac-smote-paper above with the actual path it creates — the exact path doesn't matter, but once chosen, use it consistently everywhere else in this guide (all later paths in this document are given relative to the project root, i.e. relative to wherever this folder ends up).
+
+4. Project Directory Structure
+Create this exact structure before writing any code. Antigravity should create every folder and empty file below on Day 1, Hour 2, before implementing anything.
+
+ac-smote-paper/
+├── PROJECT_SPEC.md              <- this document, copied in verbatim
+├── requirements.txt
+├── README.md
+├── data/
+│   ├── raw/                     <- untouched downloaded files (csv)
+│   └── dataset_manifest.json    <- config: name -> {source, path, expected_n, expected_d, expected_ratio}
+├── src/
+│   ├── __init__.py
+│   ├── data_loader.py
+│   ├── utils.py
+│   ├── methods/
+│   │   ├── __init__.py
+│   │   ├── ac_smote.py
+│   │   └── baselines.py
+│   ├── experiment.py
+│   ├── run_all_experiments.py
+│   ├── run_ablation.py
+│   ├── statistical_tests.py
+│   └── make_figures.py
+├── results/
+│   ├── raw_results.csv
+│   ├── ablation_results.csv
+│   ├── summary_table.csv
+│   ├── statistical_tests.json
+│   └── figures/
+└── paper/
+    ├── draft.md                 <- working draft, plain text/markdown, converted to the IEEE template only at the end
+    └── figures/                 <- final copies of exactly the figures used in the paper
+requirements.txt content:
+
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.3
+imbalanced-learn>=0.11
+xgboost>=2.0
+shap>=0.44
+matplotlib>=3.7
+seaborn>=0.12
+scipy>=1.11
+statsmodels>=0.14
+scikit-posthocs>=0.7
+tqdm

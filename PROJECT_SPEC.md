@@ -139,3 +139,97 @@ scipy>=1.11
 statsmodels>=0.14
 scikit-posthocs>=0.7
 tqdm
+
+5. Datasets
+Use 10 datasets total: 8 from the standard imbalanced-learn benchmark collection (zero manual download needed — one Python call fetches all of them) plus 2 real-world datasets from Kaggle (manual download, no API key needed).
+
+5.1 — Eight datasets via imbalanced-learn
+from imblearn.datasets import fetch_datasets
+all_data = fetch_datasets()   # downloads once, caches locally afterwards
+Use exactly these 8 keys from the returned dictionary (chosen to span a wide range of imbalance ratios and dimensionalities — mild to extreme):
+
+Key (use exactly this string)	Approx. imbalance ratio*	Approx. n samples	Approx. n features
+ecoli	~8.6:1	336	7
+satimage	~9.3:1	6,435	36
+spectrometer	~11:1	531	93
+car_eval_34	~12:1	1,728	21
+oil	~22:1	937	49
+wine_quality	~26:1	4,898	11
+mammography	~42:1	11,183	6
+abalone_19	~130:1	4,177	10
+*These ratios are from memory of the standard benchmark documentation and may be slightly off. Do not trust this column — Day 1's first coding task is to load each dataset and print its actual n_samples, n_features, and minority:majority ratio, and use those real, verified numbers everywhere from that point on (including in the paper's dataset table).
+
+5.2 — Two datasets via Kaggle (manual download)
+Credit Card Fraud Detection — extreme real-world imbalance (~0.17% positive, ratio ≈ 577:1), 284,807 rows, 30 numeric features (V1–V28 + Time + Amount).
+URL: https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud
+Click "Download," extract, place creditcard.csv into data/raw/.
+Telco Customer Churn — moderate real-world imbalance (~26.6% positive, ratio ≈ 2.8:1), 7,043 rows, mixed numeric/categorical features (one-hot encode the categoricals in data_loader.py).
+URL: https://www.kaggle.com/datasets/blastchar/telco-customer-churn
+Click "Download," extract, place WA_Fn-UseC_-Telco-Customer-Churn.csv into data/raw/.
+You need a free Kaggle account to click "Download" on either page — no API token, no CLI setup required.
+
+5.3 — dataset_manifest.json
+Antigravity should generate this file automatically on Day 1 after loading every dataset once — it is the verified record of what you actually have, and every later script reads dataset names from this file rather than hard-coding them twice:
+
+{
+  "ecoli":          {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "satimage":       {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "spectrometer":   {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "car_eval_34":    {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "oil":            {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "wine_quality":   {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "mammography":    {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "abalone_19":     {"source": "imblearn", "n_samples": null, "n_features": null, "ratio": null},
+  "creditcard":     {"source": "kaggle:mlg-ulb/creditcardfraud", "path": "data/raw/creditcard.csv", "n_samples": null, "n_features": null, "ratio": null},
+  "telco_churn":    {"source": "kaggle:blastchar/telco-customer-churn", "path": "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv", "n_samples": null, "n_features": null, "ratio": null}
+}
+Fill in the null fields with real measured values once each dataset is loaded — this becomes Table 1 in the paper almost verbatim.
+
+6. The Method: Attribution-Constrained SMOTE (AC-SMOTE)
+This is the core contribution. Follow this specification exactly — do not let Antigravity "improve" or simplify it without your explicit sign-off, since any deviation changes what the paper is claiming.
+
+6.1 — Intuition (for the paper's writing, not for the code)
+Standard SMOTE picks a minority point, finds a nearby minority neighbor, and interpolates between them with the same random step size λ applied identically to every feature. It has no notion of which features actually separate the classes. This can push synthetic points toward the majority class specifically along the dimensions that matter most for classification, blurring the boundary. AC-SMOTE fixes this by (1) choosing neighbors that are close specifically on decision-relevant dimensions, and (2) shrinking the interpolation step on those same dimensions, so synthetic points stay faithful to the real class signal while still gaining diversity along dimensions that don't matter.
+
+6.2 — Formal definition
+Inputs: training features X_train (n × d), training labels y_train (n,), minority label value, hyperparameters k (neighbors, default 5), alpha (neighbor-weighting strength, default 2.0), beta (interpolation constraint strength, default 0.7), surrogate_n_estimators (default 50), random_state.
+
+Step 1 — Surrogate model and attribution vector
+
+Fit surrogate = RandomForestClassifier(n_estimators=surrogate_n_estimators, max_depth=6, random_state=random_state) on the full (X_train, y_train).
+Compute explainer = shap.TreeExplainer(surrogate), then shap_values = explainer.shap_values(X_min) where X_min is the subset of X_train with the minority label. Use the SHAP values corresponding to the minority class.
+Compute raw importance per feature: imp[j] = mean_i( abs(shap_values[i, j]) ) for j = 1..d.
+Min-max normalize to get w_hat[j] = (imp[j] - min(imp)) / (max(imp) - min(imp) + 1e-12), giving values in [0, 1]. If max(imp) == min(imp) (degenerate case, e.g. very few minority samples), set every w_hat[j] = 0.5.
+Step 2 — Attribution-weighted neighbor search (within the minority class only) For any two minority points x_i, x_k (each a length-d vector), define the weighted distance:
+
+d_w(x_i, x_k) = sqrt( sum_j ( (1 + alpha * w_hat[j]) * (x_i[j] - x_k[j])**2 ) )
+For every minority point, find its k nearest neighbors (also minority points) under d_w. Implement this as an explicit n_min x n_min weighted distance matrix (function weighted_distance_matrix(X_min, w_hat, alpha) in utils.py) rather than trying to force it through a library's built-in metric argument — this keeps the computation transparent and easy to unit-test. This is cheap: minority classes are small by definition, so an O(n_min² · d) matrix is fast even for the largest dataset here.
+
+Step 3 — Attribution-constrained interpolation To generate one synthetic sample:
+
+Pick a minority point x_i at random (with replacement, cycling through all minority points to reach the target count — this matches how standard SMOTE distributes generation).
+Pick one neighbor x_nn uniformly at random from x_i's k-nearest set (from Step 2).
+Draw a single global lambda ~ Uniform(0, 1).
+For each feature j, compute the per-feature step size:
+lambda_j = lambda * (1 - beta * w_hat[j])
+lambda_j = clip(lambda_j, 0, 1)
+Generate: x_new[j] = x_i[j] + lambda_j * (x_nn[j] - x_i[j]) for every feature j.
+Repeat until you've generated enough synthetic points to fully balance the classes (same default target as imblearn's SMOTE with sampling_strategy='auto'), so that every method being compared oversamples to the same final class balance — this is essential for a fair comparison.
+
+Sanity check to implement as an automated test: when alpha = 0 and beta = 0, Step 2's distance collapses to plain Euclidean distance and Step 3's lambda_j collapses to the same lambda for every feature — i.e., AC-SMOTE(0, 0) should behave like standard SMOTE. Write a test that runs both on the same dataset with the same random seed and confirms the synthetic samples have statistically indistinguishable means and covariances (they won't be bit-identical because tie-breaking among equal-distance neighbors can differ, but the distributions should match closely). This test existing and passing is itself evidence of correctness you can mention in the paper if asked.
+
+6.3 — Required class interface (must match imblearn's API so it's a drop-in replacement)
+class ACSMOTE:
+    def __init__(self, sampling_strategy='auto', k_neighbors=5, alpha=2.0,
+                 beta=0.7, surrogate_n_estimators=50, random_state=42):
+        ...
+
+    def fit_resample(self, X, y):
+        # returns X_resampled, y_resampled
+        ...
+6.4 — Hyperparameters to sweep in the ablation (Section 6, Day 4)
+Hyperparameter	Default (main experiments)	Ablation sweep values
+beta (interpolation constraint)	0.7	0, 0.3, 0.5, 0.7, 1.0
+alpha (neighbor weighting)	2.0	0, 1, 2, 4
+k (neighbors)	5	3, 5, 7
+The beta sweep is the most important one for the paper's story: beta=0 isolates "does attribution-weighted neighbor selection alone help?" and increasing beta shows whether the constrained-interpolation piece adds anything on top. This ablation directly supports the novelty claim, so don't skip it even under time pressure.

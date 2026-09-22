@@ -374,3 +374,9 @@ Hour 5â€“6: Implement Section 6.2 Step 3 (constrained interpolation) and wire al
 Hour 7: Implement and run the alpha=0, beta=0 sanity check described in Section 6.2 â€” confirm AC-SMOTE's output distribution matches plain SMOTE's under those settings.
 Hour 8: Run ACSMOTE with default hyperparameters (Section 6.4) on all 10 datasets in a quick loop, confirming no errors/NaNs/exploding values, and eyeball a quick PCA scatter of one dataset's synthetic points to sanity-check they look reasonable (roughly within the real data's range, not degenerate/collapsed to a point).
 âœ… Checkpoint: ACSMOTE.fit_resample() runs cleanly on every dataset; sanity check passes; output looks visually reasonable on at least one dataset.
+DAY 3 — Thursday, Sept 24: Full Experiment Runner + Kick Off the Big Run
+Hour 1–2: Implement experiment.py's run_single_cell (Section 10), obeying the leakage rule in Section 8 exactly (split ? resample train only ? fit ? evaluate on original test).
+Hour 3–4: Implement run_all_experiments.py with checkpointing (Section 8). Do a tiny dry run: 2 datasets × 1 classifier × all 6 resamplers × 15 folds. Time it, and extrapolate to estimate the full grid's total runtime.
+Hour 5: Fix anything the dry run surfaced. Then launch the full grid (10 × 3 × 6 × 15 = 2,700 fits) as a background process you can leave running.
+Hour 6–8 (while the run is going in the background): Start the paper draft (paper/draft.md, plain markdown for now). Write a first pass of the Introduction and begin Related Work (see Section 12 for what belongs in each — note the Related Work section requires real literature search, done properly on Day 6; for now just sketch the structure and the categories of prior work you'll compare against).
+? Checkpoint: full experiment grid is running (or finished, if your laptop is fast) with raw_results.csv growing; Introduction has a solid first draft.

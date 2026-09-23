@@ -19,7 +19,8 @@ class ACSMOTE:
         """Step 1: Surrogate model and attribution vector"""
         surrogate = RandomForestClassifier(
             n_estimators=self.surrogate_n_estimators, 
-            max_depth=6, 
+            max_depth=6,
+            n_jobs=-1,
             random_state=self.random_state
         )
         surrogate.fit(X_train, y_train)

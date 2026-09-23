@@ -29,8 +29,8 @@ def get_classifier(name: str, random_state: int):
     if name == 'logreg':
         return LogisticRegression(max_iter=1000, random_state=random_state)
     elif name == 'rf':
-        return RandomForestClassifier(n_estimators=200, random_state=random_state)
+        return RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=random_state)
     elif name == 'xgb':
-        return XGBClassifier(n_estimators=200, use_label_encoder=False, eval_metric='logloss', random_state=random_state)
+        return XGBClassifier(n_estimators=200, use_label_encoder=False, eval_metric='logloss', n_jobs=-1, random_state=random_state)
     else:
         raise ValueError(f"Unknown classifier: {name}")

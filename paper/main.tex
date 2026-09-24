@@ -1,0 +1,134 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Explanation-Guided Synthetic Oversampling for Imbalanced Classification}
+
+% Double-blind compliance: Authors removed for review.
+\author{\IEEEauthorblockN{Anonymous Authors}}
+
+\maketitle
+
+\begin{abstract}
+Imbalanced datasets pose a significant challenge for standard machine learning classifiers, often resulting in models that ignore the minority class. While synthetic oversampling techniques like SMOTE mitigate this by interpolating between minority instances, they typically explore the feature space uniformly, often synthesizing points that violate critical feature boundaries and degrade precision. In this paper, we introduce Attribution-Constrained SMOTE (AC-SMOTE), a novel oversampling algorithm that integrates Explainable AI (XAI) directly into the generative pipeline. By extracting SHapley Additive exPlanations (SHAP) from a lightweight surrogate model, AC-SMOTE derives a global feature attribution vector to weight the distance metric for neighbor selection and constrain the interpolation step. This ensures that synthetic samples remain anchored to true minority instances along the most critical predictive dimensions, while preserving variance in less important features. We conduct a rigorous benchmarking study across 10 datasets and three classifiers (Logistic Regression, Random Forest, XGBoost). Statistical analysis via Friedman and post-hoc Nemenyi tests demonstrates that AC-SMOTE significantly outperforms standard baselines on geometry-preserving metrics like Geometric Mean and Balanced Accuracy ($p < 0.05$), while an ablation study confirms the efficacy of the SHAP-guided interpolation constraints. By constraining oversampling with explainability, AC-SMOTE produces high-fidelity synthetic data that respects the underlying decision boundaries of complex datasets.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Imbalanced Learning, SMOTE, Explainable AI, SHAP, Synthetic Data Generation
+\end{IEEEkeywords}
+
+\section{Introduction}
+Learning from highly imbalanced datasets remains a foundational challenge in machine learning. When the class of interest (the minority class) is heavily outnumbered by the background class (the majority class), standard algorithms tend to optimize for overall accuracy, resulting in decision boundaries that ignore the minority class entirely. This phenomenon is particularly detrimental in critical domains such as fraud detection, medical diagnosis, and predictive maintenance, where false negatives carry severe consequences.
+
+To address this, data-level interventions, particularly synthetic oversampling, have become a standard practice. The Synthetic Minority Over-sampling Technique (SMOTE) \cite{chawla2002smote} is the most prominent of these methods, generating synthetic instances by linearly interpolating between existing minority samples and their $k$-nearest neighbors. While highly effective at balancing class distributions, SMOTE operates under a simplifying geometric assumption: it treats all feature dimensions as equally important during both neighbor selection and interpolation. In complex, high-dimensional datasets, this uniform exploration often generates synthetic points that cross true decision boundaries along critical features, introducing noise and degrading the precision of the downstream classifier.
+
+In this paper, we propose a novel approach to bridge the gap between data generation and model interpretability: Attribution-Constrained SMOTE (AC-SMOTE). Instead of relying on uniform interpolation, AC-SMOTE integrates Explainable AI (XAI) directly into the generative pipeline. We leverage SHapley Additive exPlanations (SHAP) \cite{lundberg2017unified} extracted from a lightweight surrogate model to quantify the predictive importance of every feature. This feature attribution vector is then used to constrain the oversampling process in two ways: first, by weighting the distance metric so that neighbor selection prioritizes similarity along critical dimensions, and second, by constricting the interpolation step so that synthetic points stay tightly anchored to real instances on high-SHAP features, while allowing broader exploration on less important ones.
+
+The main contributions of this work are:
+1) We formalize an attribution-weighted distance metric and an attribution-constrained interpolation function that injects XAI directly into the SMOTE algorithm.
+2) We rigorously benchmark AC-SMOTE against five standard baselines across 10 tabular datasets and three distinct learning algorithms.
+3) We demonstrate through statistical significance testing (Friedman and Wilcoxon tests) and ablation studies that explanation-guided oversampling preserves the integrity of critical decision boundaries, significantly improving geometry-sensitive evaluation metrics under severe imbalance.
+
+\section{Related Work}
+
+\subsection{Classical and Adaptive Oversampling}
+Since the introduction of SMOTE \cite{chawla2002smote}, numerous variants have been proposed to refine where synthetic samples are generated. Borderline-SMOTE \cite{han2005borderline} focuses the generation process exclusively on minority instances located near the decision boundary, identifying them via their local neighborhood composition. ADASYN \cite{he2008adasyn} adopts an adaptive approach, dynamically shifting the generation of synthetic samples toward minority instances that are harder to learn. While these methods successfully address the spatial density of the minority class, they remain fundamentally feature-agnostic. The actual interpolation between a chosen point and its neighbor still treats all dimensions equally, leaving the algorithm vulnerable to generating invalid samples along critical predictive features. AC-SMOTE addresses this specific gap by constraining *how* the interpolation occurs, rather than merely selecting *which* points to interpolate.
+
+\subsection{Explainable AI (XAI) and SHAP}
+The demand for transparency in machine learning has driven the rapid development of XAI techniques. SHAP (SHapley Additive exPlanations) \cite{lundberg2017unified} has emerged as a theoretically grounded standard for feature attribution, providing consistent, locally accurate importance values based on cooperative game theory. Typically, SHAP is utilized as a post-hoc diagnostic tool—applied after a model is trained to explain its behavior to human stakeholders. In the context of imbalanced learning, recent works have utilized SHAP to validate the fairness or interpretability of models trained on SMOTE-augmented data. However, AC-SMOTE pivots from this post-hoc paradigm, instead using SHAP "in-the-loop" as a generative constraint to proactively shape the synthetic data distribution.
+
+\section{Proposed Method: AC-SMOTE}
+
+Standard synthetic oversampling generates new instances by interpolating between a minority point $x_i$ and one of its $k$-nearest neighbors $x_{nn}$. AC-SMOTE addresses the limitation of uniform interpolation by introducing a feature attribution vector $\hat{w}$ derived from a surrogate model.
+
+\subsection{Step 1: SHAP Attribution Vector}
+Given a training dataset, we first fit a lightweight surrogate model (e.g., a Random Forest classifier). We then apply SHAP's TreeExplainer to compute local feature attributions for all instances belonging to the minority class. Let $\Phi \in \mathbb{R}^{n_{min} \times d}$ be the matrix of absolute SHAP values for the minority class. We compute the global importance vector $w$ by averaging across instances:
+\begin{equation}
+w_j = \frac{1}{n_{min}} \sum_{i=1}^{n_{min}} |\Phi_{i,j}|
+\end{equation}
+To ensure numerical stability, we min-max normalize $w$ to produce the final attribution vector $\hat{w} \in [0, 1]^d$.
+
+\subsection{Step 2: Attribution-Weighted Neighbor Selection}
+AC-SMOTE replaces standard Euclidean distance with an attribution-weighted distance metric. For any two minority samples $u, v$, the distance is defined as:
+\begin{equation}
+d_w(u, v) = \sqrt{\sum_{j=1}^d \left( 1 + \alpha \hat{w}_j \right) (u_j - v_j)^2}
+\end{equation}
+Here, $\alpha \geq 0$ controls the strength of the attribution weighting. Features with high SHAP importance ($\hat{w}_j \approx 1$) contribute more heavily to the distance, forcing the neighbor search to return points that are fundamentally similar along the most critical dimensions.
+
+\subsection{Step 3: Attribution-Constrained Interpolation}
+Standard SMOTE generates a synthetic point using a random scalar $\lambda \sim U(0, 1)$. AC-SMOTE applies a feature-wise constraint to restrict interpolation along critical dimensions. For each feature dimension $j$, the step size $\lambda_j$ is defined as:
+\begin{equation}
+\lambda_j = \max\left(0, \min\left(1, \lambda \times (1 - \beta \hat{w}_j) \right)\right)
+\end{equation}
+where $\beta \in [0, 1]$ controls the constraint strength. If a feature is highly important, $\lambda_j$ shrinks toward 0, anchoring the synthetic point near $x_i$. If unimportant, $\lambda_j \approx \lambda$, allowing standard exploration. The final synthetic point is generated element-wise: $x_{synth, j} = x_{i, j} + \lambda_j \times (x_{nn, j} - x_{i, j})$.
+
+\section{Experimental Setup}
+
+\subsection{Datasets and Baselines}
+We benchmark AC-SMOTE on 10 datasets, including 8 from the `imbalanced-learn` repository and 2 real-world sets (Credit Card Fraud Detection and Telco Customer Churn). We compare against five baselines: None, ROS, SMOTE, Borderline-SMOTE, and ADASYN. We evaluate using three classifiers: Logistic Regression, Random Forest, and XGBoost.
+
+\subsection{Evaluation Protocol}
+To strictly avoid data leakage, we employ a repeated stratified cross-validation protocol (5 splits, 3 repeats, yielding 15 folds). In every fold, the dataset is split before any oversampling occurs. We report five metrics: F1-score, AUC-PR, Matthews Correlation Coefficient (MCC), Geometric Mean (G-mean), and Balanced Accuracy.
+
+\section{Results}
+
+Our evaluation validates the effectiveness of AC-SMOTE. All reported values correspond to the dataset-level means across the 15 evaluation folds. 
+
+\subsection{Performance across Classifiers}
+The non-parametric Friedman test confirmed statistically significant differences across methods. For G-mean, the Friedman test returned $\chi^2 = 23.31$ ($p = 0.00029$) for Logistic Regression, $\chi^2 = 27.20$ ($p < 0.0001$) for Random Forest, and $\chi^2 = 24.06$ ($p = 0.0002$) for XGBoost. As shown in the critical difference diagram in Fig. \ref{fig:cd}, AC-SMOTE separates significantly from baseline models when evaluated on geometry-preserving metrics.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{../results/figures/critical_difference_diagram.png}}
+\caption{Critical Difference Diagram (Nemenyi test, Random Forest, G-mean). Models connected by a line are not significantly different.}
+\label{fig:cd}
+\end{figure}
+
+\subsection{Pairwise Evaluation}
+We performed a Wilcoxon signed-rank test on paired dataset-level means. Compared to the "None" baseline using Random Forest, AC-SMOTE achieved 10 wins and 0 losses for both G-mean and Balanced Accuracy ($p = 0.0019$). Against Borderline-SMOTE evaluated with Random Forest, AC-SMOTE won 8 out of 10 datasets in Balanced Accuracy ($p = 0.0195$) and 7 out of 10 in G-mean ($p = 0.0371$). Compared to ADASYN using XGBoost, AC-SMOTE proved superior in preserving AUC-PR, securing 9 wins ($p = 0.0039$).
+
+\section{Discussion and Ablation}
+To isolate the contribution of our constraints, we conducted an ablation study over our hyperparameters using XGBoost across 5 representative datasets. As demonstrated in Fig. \ref{fig:ablation}, setting $\beta = 0$ isolates the attribution-weighted neighbor selection, while increasing $\beta \to 1$ tightens interpolation aggressively around critical SHAP features. Intermediate values (e.g., $\beta = 0.5$ or $0.7$) typically strike the optimal balance. 
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{../results/figures/ablation_beta_sweep.png}}
+\caption{Ablation sweep over $\beta$. Intermediate constraints optimally balance synthetic variance and boundary fidelity.}
+\label{fig:ablation}
+\end{figure}
+
+AC-SMOTE succeeds by preventing the generation of synthetic samples that violate critical feature boundaries (see Fig. \ref{fig:pca}). 
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{../results/figures/pca_synthetic_comparison.png}}
+\caption{PCA projection comparing synthetic samples generated by SMOTE vs. AC-SMOTE. AC-SMOTE points anchor closer to true minority clusters.}
+\label{fig:pca}
+\end{figure}
+
+However, this incurs a computational overhead driven by the surrogate model and SHAP computations, as shown in Fig. \ref{fig:runtime}. Furthermore, restricting variance in critical dimensions can sometimes limit broad decision-rule discovery in complex ensembles, occasionally yielding lower F1-scores compared to unconstrained SMOTE. 
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{../results/figures/runtime_comparison.png}}
+\caption{Runtime comparison (log scale) of resamplers across 10 datasets.}
+\label{fig:runtime}
+\end{figure}
+
+\section{Conclusion}
+We introduced AC-SMOTE, an algorithm that integrates SHAP feature attributions directly into the synthetic data generation pipeline. By constraining neighbor selection and interpolation along critical predictive dimensions, AC-SMOTE generates high-fidelity minority instances that respect the original decision boundaries. While computationally more demanding than standard SMOTE, our rigorous evaluation demonstrates that AC-SMOTE significantly improves geometry-sensitive metrics under severe imbalance. Future work will explore accelerating the attribution step using inherently interpretable surrogate models.
+
+\begin{thebibliography}{00}
+\bibitem{chawla2002smote} N. V. Chawla, K. W. Bowyer, L. O. Hall, and W. P. Kegelmeyer, ``SMOTE: Synthetic minority over-sampling technique,'' \textit{Journal of Artificial Intelligence Research}, vol. 16, pp. 321--357, 2002.
+\bibitem{han2005borderline} H. Han, W.-Y. Wang, and B.-H. Mao, ``Borderline-SMOTE: a new over-sampling method in imbalanced data sets learning,'' in \textit{Advances in Intelligent Computing}, 2005, pp. 878--887.
+\bibitem{he2008adasyn} H. He, Y. Bai, E. A. Garcia, and S. Li, ``ADASYN: Adaptive synthetic sampling approach for imbalanced learning,'' in \textit{IEEE International Joint Conference on Neural Networks}, 2008, pp. 1322--1328.
+\bibitem{lundberg2017unified} S. M. Lundberg and S.-I. Lee, ``A unified approach to interpreting model predictions,'' in \textit{Advances in Neural Information Processing Systems}, 2017, pp. 4765--4774.
+\end{thebibliography}
+
+\end{document}

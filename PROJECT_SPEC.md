@@ -386,3 +386,9 @@ Hour 3–4: Implement and run statistical_tests.py exactly per Section 9. Inspect 
 Hour 5–6: Implement and run run_ablation.py (Section 6.4's beta/alpha/k sweep, on 5 representative datasets, XGBoost only). Save to ablation_results.csv.
 Hour 7–8: Continue the paper draft: write the Proposed Method section (this is mostly transcribing Section 6.2's formulas into paper prose + one pseudocode block), and start Experimental Setup (datasets table from the manifest, classifiers, metrics, CV protocol — all already fully specified in Sections 5, 7, 8).
 ? Checkpoint: statistical_tests.json and ablation_results.csv both exist and are non-empty; Proposed Method and Experimental Setup sections drafted.
+DAY 5 — Saturday, Sept 26: Figures + Results/Discussion
+Hour 1–2: Implement and run make_figures.py's critical-difference diagram and per-metric boxplots.
+Hour 3–4: Generate the PCA synthetic-sample comparison figure and the ablation line plot.
+Hour 5: Generate the runtime comparison bar chart.
+Hour 6–8: Write the Results section, referencing the actual numbers in summary_table.csv and actual figures in results/figures/ — every sentence with a number in it must be checked against the real table, not written from memory or "roughly what I expect." Write the Discussion subsection interpreting the Wilcoxon/Friedman outcomes and the ablation honestly (Section 9's honesty rule applies here most of all).
+? Checkpoint: all 5 figure types exist in results/figures/; Results and Discussion sections drafted, every number traceable to a file on disk.

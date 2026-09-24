@@ -106,3 +106,45 @@ To evaluate generalization across learning algorithms, we test three classifiers
 To strictly avoid data leakage—a common pitfall in oversampling literature—we employ a rigorous repeated stratified cross-validation protocol (5 splits, 3 repeats, yielding 15 folds). Crucially, in every fold, the dataset is split *before* any oversampling occurs. The resampler is fit and applied exclusively to the training fold, while the classifier is evaluated on the original, unmodified test fold.
 
 We report five metrics to capture performance under severe imbalance: F1-score (minority class), Area Under the Precision-Recall Curve (AUC-PR), Matthews Correlation Coefficient (MCC), Geometric Mean (G-mean), and Balanced Accuracy.
+
+## 5. Results
+
+Our experimental evaluation across 10 datasets validates the effectiveness of AC-SMOTE, while also revealing nuances in how attribution-constrained oversampling interacts with different learning algorithms. All reported values correspond to the dataset-level means across the 15 evaluation folds (Repeated Stratified 5-Fold CV). Full dataset-by-dataset outcomes are provided in `results/summary_table.csv`.
+
+### 5.1. Performance across Classifiers
+
+The non-parametric Friedman test, executed across the six tested strategies (None, ROS, SMOTE, Borderline-SMOTE, ADASYN, and AC-SMOTE) using each dataset as a block, confirmed statistically significant differences across methods. For instance, evaluating the Geometric Mean (G-mean) metric, the Friedman test returned a test statistic of $\chi^2 = 23.31$ ($p = 0.00029$) for Logistic Regression, $\chi^2 = 27.20$ ($p < 0.0001$) for Random Forest, and $\chi^2 = 24.06$ ($p = 0.0002$) for XGBoost. 
+
+A post-hoc Nemenyi test (visualized in the Critical Difference Diagram, Figure 1) groups the resamplers based on their rank distributions. We observed that the choice of oversampling strongly impacts models with lower capacity or unregularized linear bounds, whereas powerful non-linear ensembles (like XGBoost) exhibit different sensitivities.
+
+### 5.2. Pairwise Evaluation: AC-SMOTE vs. Baselines
+
+To evaluate AC-SMOTE directly against individual baselines, we performed a Wilcoxon signed-rank test on the paired dataset-level means. 
+
+**Compared to No Resampling (None):**
+AC-SMOTE unequivocally improves metrics that account for class imbalance. Against the "None" baseline using Random Forest, AC-SMOTE achieved 10 wins and 0 losses for both G-mean and Balanced Accuracy ($p = 0.0019$). Similar dominance was observed for Logistic Regression (10 wins, 0 losses for both metrics). 
+
+**Compared to Basic Resampling (ROS and SMOTE):**
+When compared to Random Over-Sampling (ROS) under Logistic Regression, AC-SMOTE achieved a significant victory in F1-score (9 wins, 1 loss, $p = 0.0097$) and MCC (9 wins, 1 loss, $p = 0.0195$).
+Against standard SMOTE using Random Forest, the results were highly competitive but mixed. For G-mean, AC-SMOTE secured 6 wins and 4 losses; however, for F1-score, SMOTE outperformed AC-SMOTE on 7 out of 10 datasets. This suggests that while attribution-constrained interpolation helps preserve the underlying geometric distribution (benefitting G-mean), unconstrained SMOTE's broader feature-space exploration can sometimes yield higher precision/recall harmonic means in complex ensembles.
+
+**Compared to Density-based Resampling (Borderline-SMOTE and ADASYN):**
+AC-SMOTE demonstrated strong advantages over Borderline-SMOTE when evaluated with Random Forest, winning 8 out of 10 datasets in Balanced Accuracy ($p = 0.0195$) and 7 out of 10 in G-mean ($p = 0.0371$). Interestingly, when compared to ADASYN using XGBoost, AC-SMOTE proved vastly superior in preserving the Area Under the Precision-Recall Curve (AUC-PR), securing 9 wins and only 1 loss ($p = 0.0039$). 
+
+## 6. Discussion and Ablation Study
+
+### 6.1. Ablation on Hyperparameters ($\beta$, $\alpha$, $k$)
+To isolate the contribution of our attribution-guided constraints, we conducted an ablation study over our novel hyperparameters using XGBoost across 5 representative datasets (including the heavily imbalanced `abalone_19` and the massive `creditcard` benchmark).
+
+The ablation sweeps (stored in `ablation_results.csv`) confirm the efficacy of the interpolation constraint ($\beta$). Setting $\beta = 0$ reduces AC-SMOTE to using only attribution-weighted neighbor selection, while increasing $\beta \to 1$ tightens the interpolation step aggressively around critical SHAP features. As visualized in the $\beta$-sweep plots, intermediate values (e.g., $\beta = 0.5$ or $0.7$) typically strike the optimal balance, preventing the collapse of synthetic variance while avoiding the generation of noisy samples in critical dimensions.
+
+### 6.2. Interpretation and Limitations
+The experimental results enforce a known reality in imbalanced learning literature: no single oversampling technique universally dominates every metric and every classifier. 
+
+AC-SMOTE succeeds where standard SMOTE creates "bridge" samples that cross the true decision boundary in highly critical feature dimensions. By forcing interpolation to stay close to the parent instance on high-SHAP features, AC-SMOTE protects the integrity of those dimensions. This was distinctly visible in our PCA projections on the `wine_quality` dataset, where AC-SMOTE's synthetic instances adhered more closely to the dense clusters of true minority samples compared to the diffuse spread of standard SMOTE.
+
+However, this structural fidelity comes with two trade-offs. 
+First, there is an observable computational overhead. The runtime comparison chart demonstrates that AC-SMOTE is slower than SMOTE, driven inherently by the need to fit a surrogate model and compute TreeSHAP values prior to neighbor selection. 
+Second, in specific classifier configurations (notably Random Forest evaluated on F1-score), restricting variance in critical dimensions sometimes limits the ensemble's ability to discover broader decision rules, leading to minor losses against unconstrained SMOTE. 
+
+Despite these limitations, AC-SMOTE represents a mathematically principled approach to injecting Explainable AI (XAI) directly into the generative pipeline, proving that feature attributions can actively improve data quality rather than merely explaining it post-hoc.

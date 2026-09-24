@@ -5,18 +5,25 @@ from src.utils import weighted_distance_matrix
 
 class ACSMOTE:
     def __init__(self, sampling_strategy='auto', k_neighbors=5, alpha=2.0,
-                 beta=0.7, surrogate_n_estimators=50, random_state=42):
+                 beta=0.7, surrogate_n_estimators=50, random_state=42,
+                 attribution_method='shap'):
         self.sampling_strategy = sampling_strategy
         self.k_neighbors = k_neighbors
         self.alpha = alpha
         self.beta = beta
         self.surrogate_n_estimators = surrogate_n_estimators
         self.random_state = random_state
+        self.attribution_method = attribution_method
         
         self.rng_ = np.random.RandomState(self.random_state)
         
     def _compute_w_hat(self, X_train, y_train, X_min):
         """Step 1: Surrogate model and attribution vector"""
+        n_features = X_train.shape[1]
+        
+        if self.attribution_method == 'uniform':
+            return np.full(n_features, 0.5)
+            
         surrogate = RandomForestClassifier(
             n_estimators=self.surrogate_n_estimators, 
             max_depth=6,
@@ -25,22 +32,30 @@ class ACSMOTE:
         )
         surrogate.fit(X_train, y_train)
         
-        explainer = shap.TreeExplainer(surrogate)
-        shap_values = explainer.shap_values(X_min)
-        
-        # In newer shap versions for binary classification, shap_values might be a list
-        if isinstance(shap_values, list):
-            # Assuming class 1 is the minority, we take shap_values[1]
-            # but if shape is just (n, d), it's not a list. We'll handle both.
-            # Usually RandomForest binary classification gives a list of length 2.
-            # But minority label is always 1 in our setup.
-            shap_values = shap_values[1]
+        if self.attribution_method == 'rf_gini':
+            imp = surrogate.feature_importances_
+        elif self.attribution_method == 'permutation':
+            from sklearn.inspection import permutation_importance
+            result = permutation_importance(surrogate, X_train, y_train, random_state=self.random_state, n_jobs=-1)
+            imp = np.abs(result.importances_mean)
+        elif self.attribution_method == 'mutual_info':
+            from sklearn.feature_selection import mutual_info_classif
+            imp = mutual_info_classif(X_train, y_train, random_state=self.random_state)
+        elif self.attribution_method == 'anova_f':
+            from sklearn.feature_selection import f_classif
+            f_vals, _ = f_classif(X_train, y_train)
+            imp = np.nan_to_num(f_vals, nan=0.0)
+        else:
+            # Default: shap
+            explainer = shap.TreeExplainer(surrogate)
+            shap_values = explainer.shap_values(X_min)
             
-        elif len(shap_values.shape) == 3:
-            # SHAP returns (n_samples, n_features, n_classes) for some models
-            shap_values = shap_values[:, :, 1]
-            
-        imp = np.mean(np.abs(shap_values), axis=0)
+            if isinstance(shap_values, list):
+                shap_values = shap_values[1]
+            elif len(shap_values.shape) == 3:
+                shap_values = shap_values[:, :, 1]
+                
+            imp = np.mean(np.abs(shap_values), axis=0)
         
         min_imp = np.min(imp)
         max_imp = np.max(imp)

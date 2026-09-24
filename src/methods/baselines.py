@@ -1,11 +1,27 @@
-from imblearn.over_sampling import RandomOverSampler, SMOTE, BorderlineSMOTE, ADASYN
+from imblearn.over_sampling import RandomOverSampler, SMOTE, BorderlineSMOTE, ADASYN, SVMSMOTE
+from imblearn.combine import SMOTETomek
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
+class SafeSVMSMOTE:
+    def __init__(self, random_state):
+        self.random_state = random_state
+        self.svmsmote = SVMSMOTE(random_state=random_state)
+        
+    def fit_resample(self, X, y):
+        # Subsample majority class if it's exceptionally large (like creditcard dataset)
+        # SVMSMOTE trains an SVM, which is O(N^3). Without this, creditcard will hang.
+        n_maj = (y == 0).sum()
+        if n_maj > 15000:
+            from imblearn.under_sampling import RandomUnderSampler
+            rus = RandomUnderSampler(sampling_strategy={0: 15000}, random_state=self.random_state)
+            X, y = rus.fit_resample(X, y)
+        return self.svmsmote.fit_resample(X, y)
+
 def get_resampler(name: str, random_state: int):
     """
-    name in {'none', 'ros', 'smote', 'bsmote', 'adasyn', 'acsmote'}
+    name in {'none', 'ros', 'smote', 'bsmote', 'adasyn', 'acsmote', 'svmsmote', 'smotetomek'}
     Returns an object with .fit_resample(X, y) -> (X_res, y_res),
     or None for 'none' (meaning: use the raw imbalanced training fold as-is).
     """
@@ -19,6 +35,10 @@ def get_resampler(name: str, random_state: int):
         return BorderlineSMOTE(random_state=random_state)
     elif name == 'adasyn':
         return ADASYN(random_state=random_state)
+    elif name == 'svmsmote':
+        return SafeSVMSMOTE(random_state=random_state)
+    elif name == 'smotetomek':
+        return SMOTETomek(random_state=random_state)
     elif name == 'acsmote':
         from src.methods.ac_smote import ACSMOTE
         return ACSMOTE(random_state=random_state)

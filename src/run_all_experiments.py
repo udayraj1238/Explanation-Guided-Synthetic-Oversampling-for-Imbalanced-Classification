@@ -23,7 +23,7 @@ def main(dry_run=False):
     # 2. Setup grid
     datasets = load_all_datasets()
     classifiers = ['logreg', 'rf', 'xgb']
-    resamplers = ['none', 'ros', 'smote', 'bsmote', 'adasyn', 'acsmote']
+    resamplers = ['none', 'ros', 'smote', 'bsmote', 'adasyn', 'acsmote', 'svmsmote', 'smotetomek']
     
     if dry_run:
         # 2 datasets, 1 classifier, 6 resamplers

@@ -392,3 +392,25 @@ Hour 3–4: Generate the PCA synthetic-sample comparison figure and the ablation l
 Hour 5: Generate the runtime comparison bar chart.
 Hour 6–8: Write the Results section, referencing the actual numbers in summary_table.csv and actual figures in results/figures/ — every sentence with a number in it must be checked against the real table, not written from memory or "roughly what I expect." Write the Discussion subsection interpreting the Wilcoxon/Friedman outcomes and the ablation honestly (Section 9's honesty rule applies here most of all).
 ? Checkpoint: all 5 figure types exist in results/figures/; Results and Discussion sections drafted, every number traceable to a file on disk.
+
+DAY 6 — Sunday, Sept 27: Related Work, Abstract, Conclusion, Full Assembly
+Hour 1–3: Related Work — this is the one section that genuinely requires literature search, not just transcription of earlier sections. Search Google Scholar / Semantic Scholar for real, current papers on: (a) classical and recent SMOTE variants, (b) SHAP/attribution methods in general, (c) any existing work combining explainability with resampling (if you find something very close to AC-SMOTE, don't panic — read it carefully, and use Section 15's guidance on what to do). Critical rule: every citation must be a paper you or Antigravity actually opened and confirmed is real — author names, year, venue, and claims all verified against the actual paper. Never let a citation be invented or "filled in" from a vague memory of what a paper "probably" says — a fabricated or misattributed citation is an academic-integrity problem, not just a formatting one, and it's exactly the kind of thing a reviewer or your professor can catch by clicking the reference.
+Hour 4: Write the Related Work section (2–3 short subsections: classical oversampling, explainability methods, positioning AC-SMOTE relative to both).
+Hour 5: Write the Abstract (=250 words per Section 2 — write this last, after everything else is final, since it needs to accurately summarize real results) and the Conclusion (what was shown, honest limitations, one sentence on future work).
+Hour 6: Download the official IEEE conference template (Section 2) and assemble the full draft into it — Abstract, Intro, Related Work, Proposed Method, Experimental Setup, Results, Discussion, Conclusion, References.
+Hour 7–8: First full read-through. Check page count against the 6-page limit (Section 2) — if over, trim the Related Work or move an extra figure to a single combined multi-panel figure rather than cutting a results table.
+? Checkpoint: complete draft exists in the IEEE template, all sections present, page count checked.
+
+DAY 7 — Monday, Sept 28: Polish + Compliance Checks
+Hour 1–2: Double-blind compliance check (Section 2) — search the PDF for your name, your professor's name, your institute's name, and any email address; remove all of them from the body (they belong only in the separate submission-portal metadata fields, not the PDF itself).
+Hour 3–4: Re-read every sentence in Related Work and Introduction that references prior work — confirm none of it is closely-copied phrasing from a source (paraphrase anything that's too close to the original wording) and that every citation number [n] actually corresponds to a real entry in your reference list, in the right order.
+Hour 5–6: Full proofread for clarity and consistent notation (e.g., make sure alpha/beta/k are used identically everywhere they appear, symbols in equations match the code exactly).
+Hour 7: Verify every figure and table is captioned, numbered, and referenced by that number somewhere in the text ("as shown in Table 2...").
+Hour 8: Read the Abstract fresh against the final Results section — confirm it doesn't overstate anything the actual numbers don't support.
+? Checkpoint: paper is functionally submission-ready.
+
+DAY 8 — Tuesday, Sept 29: Buffer Day
+Use this day to fix anything Day 7 surfaced, get a second reader (your professor or a peer) to skim it if at all possible, export the final PDF, and open that PDF yourself to confirm every figure rendered correctly and no fonts are missing/substituted. Do not do any new experiments today — new results this late risk introducing an untested claim right before submission.
+
+DAY 9 — Wednesday, Sept 30: Submission Day (do not treat this as a working day)
+Submit through https://cmt3.research.microsoft.com/CICT2026 well before the deadline, not at the last hour — portals slow down or have technical hiccups under last-day load. Select Track 1: AI, ML & Data Analytics. Fill in title, the finalized abstract, and at least 3 keywords. Double-check the uploaded PDF is the final, blind, correctly-paginated version — not an intermediate draft.

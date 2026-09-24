@@ -25,14 +25,19 @@ def run_single_cell(X, y, dataset_name, classifier_name, resampler_name,
         X_train, y_train = X[train_idx], y[train_idx]
         X_test, y_test = X[test_idx], y[test_idx]
         
-        start_time = time.time()
-        
         # 1. Resample (ONLY ON TRAIN)
         if resampler_name != 'none':
             resampler = get_resampler(resampler_name, random_state)
+            
+            # Start timer for resampler only
+            start_time = time.time()
             X_train_res, y_train_res = resampler.fit_resample(X_train, y_train)
+            fit_time = time.time() - start_time
         else:
+            # For 'none', time is essentially 0
+            start_time = time.time()
             X_train_res, y_train_res = X_train, y_train
+            fit_time = time.time() - start_time
             
         # 2. Fit Classifier (ON RESAMPLED TRAIN)
         clf = get_classifier(classifier_name, random_state)
@@ -44,8 +49,6 @@ def run_single_cell(X, y, dataset_name, classifier_name, resampler_name,
             y_score = clf.predict_proba(X_test)[:, 1]
         else:
             y_score = clf.decision_function(X_test)
-            
-        fit_time = time.time() - start_time
         
         # 4. Metrics
         metrics = compute_all_metrics(y_test, y_pred, y_score)

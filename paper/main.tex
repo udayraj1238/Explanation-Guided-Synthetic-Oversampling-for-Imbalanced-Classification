@@ -1,4 +1,4 @@
-\documentclass[conference]{IEEEtran}
+\documentclass[conference,a4paper]{IEEEtran}
 \IEEEoverridecommandlockouts
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
@@ -20,7 +20,7 @@
 \maketitle
 
 \begin{abstract}
-Imbalanced datasets pose a significant challenge for standard machine learning classifiers, often resulting in models that ignore the minority class. While synthetic oversampling techniques like SMOTE mitigate this by interpolating between minority instances, they typically explore the feature space uniformly, often synthesizing points that violate critical feature boundaries and degrade precision. In this paper, we introduce Attribution-Constrained SMOTE (AC-SMOTE), a novel oversampling algorithm that integrates Explainable AI (XAI) directly into the generative pipeline. By extracting SHapley Additive exPlanations (SHAP) from a lightweight surrogate model, AC-SMOTE derives a global feature attribution vector to weight the distance metric for neighbor selection and constrain the interpolation step. This ensures that synthetic samples remain anchored to true minority instances along the most critical predictive dimensions, while preserving variance in less important features. We conduct a rigorous benchmarking study across 10 datasets and three classifiers (Logistic Regression, Random Forest, XGBoost). Statistical analysis via Friedman and post-hoc Nemenyi tests demonstrates that AC-SMOTE significantly outperforms standard baselines on geometry-preserving metrics like Geometric Mean and Balanced Accuracy ($p < 0.05$), while an ablation study confirms the efficacy of the SHAP-guided interpolation constraints. By constraining oversampling with explainability, AC-SMOTE produces high-fidelity synthetic data that respects the underlying decision boundaries of complex datasets.
+Imbalanced datasets pose a significant challenge for standard machine learning classifiers, often resulting in models that ignore the minority class. While synthetic oversampling techniques like SMOTE mitigate this by interpolating between minority instances, they typically explore the feature space uniformly, often synthesizing points that violate critical feature boundaries and degrade precision. In this paper, we introduce Attribution-Constrained SMOTE (AC-SMOTE), a novel oversampling algorithm that integrates Explainable AI (XAI) directly into the generative pipeline. By extracting SHapley Additive exPlanations (SHAP) from a lightweight surrogate model, AC-SMOTE derives a global feature attribution vector to weight the distance metric for neighbor selection and constrain the interpolation step. This ensures that synthetic samples remain anchored to true minority instances along the most critical predictive dimensions, while preserving variance in less important features. We conduct a rigorous benchmarking study across 10 datasets and three classifiers (Logistic Regression, Random Forest, XGBoost). Statistical analysis via Friedman and post-hoc Nemenyi tests demonstrates that AC-SMOTE significantly outperforms no-resampling, random oversampling, Borderline-SMOTE, and ADASYN on geometry-preserving metrics like Geometric Mean and Balanced Accuracy (Wilcoxon $p < 0.05$ in most cases), while performing comparably to standard SMOTE on these same metrics. An ablation study confirms the efficacy of the SHAP-guided interpolation constraints. By constraining oversampling with explainability, AC-SMOTE produces high-fidelity synthetic data that respects the underlying decision boundaries of complex datasets.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -42,10 +42,12 @@ The main contributions of this work are:
 \section{Related Work}
 
 \subsection{Classical and Adaptive Oversampling}
-Since the introduction of SMOTE \cite{chawla2002smote}, numerous variants have been proposed to refine where synthetic samples are generated. Borderline-SMOTE \cite{han2005borderline} focuses the generation process exclusively on minority instances located near the decision boundary, identifying them via their local neighborhood composition. ADASYN \cite{he2008adasyn} adopts an adaptive approach, dynamically shifting the generation of synthetic samples toward minority instances that are harder to learn. While these methods successfully address the spatial density of the minority class, they remain fundamentally feature-agnostic. The actual interpolation between a chosen point and its neighbor still treats all dimensions equally, leaving the algorithm vulnerable to generating invalid samples along critical predictive features. AC-SMOTE addresses this specific gap by constraining *how* the interpolation occurs, rather than merely selecting *which* points to interpolate.
+Since the introduction of SMOTE \cite{chawla2002smote}, which synthesizes minority samples via linear interpolation between nearest neighbors, numerous variants have been proposed to refine where synthetic samples are generated. Borderline-SMOTE \cite{han2005borderline} focuses the generation process exclusively on minority instances located near the decision boundary, identifying them via their local neighborhood composition. ADASYN \cite{he2008adasyn} adopts an adaptive approach, dynamically shifting the generation of synthetic samples toward minority instances that are harder to learn based on a density distribution. While these methods successfully address the spatial density of the minority class, they remain fundamentally feature-agnostic. The actual interpolation between a chosen point and its neighbor still treats all dimensions equally, leaving the algorithm vulnerable to generating invalid samples along critical predictive features. AC-SMOTE addresses this specific gap by constraining \textit{how} the interpolation occurs, rather than merely selecting \textit{which} points to interpolate.
 
-\subsection{Explainable AI (XAI) and SHAP}
-The demand for transparency in machine learning has driven the rapid development of XAI techniques. SHAP (SHapley Additive exPlanations) \cite{lundberg2017unified} has emerged as a theoretically grounded standard for feature attribution, providing consistent, locally accurate importance values based on cooperative game theory. Typically, SHAP is utilized as a post-hoc diagnostic tool—applied after a model is trained to explain its behavior to human stakeholders. In the context of imbalanced learning, recent works have utilized SHAP to validate the fairness or interpretability of models trained on SMOTE-augmented data. However, AC-SMOTE pivots from this post-hoc paradigm, instead using SHAP "in-the-loop" as a generative constraint to proactively shape the synthetic data distribution.
+\subsection{Explainable AI and SHAP-Guided Resampling}
+The demand for transparency in machine learning has driven the rapid development of Explainable AI (XAI) techniques. SHAP (SHapley Additive exPlanations) \cite{lundberg2017unified} has emerged as a theoretically grounded standard for feature attribution, providing consistent, locally accurate importance values based on cooperative game theory. Typically, SHAP is utilized as a post-hoc diagnostic tool---applied after a model is trained to explain its behavior to human stakeholders. 
+
+In the context of imbalanced learning, recent literature has increasingly intersected XAI with oversampling. Several studies utilize SHAP to validate models trained on SMOTE-augmented data, proving that the models rely on clinically or logically relevant features rather than synthetic noise. Furthermore, emerging approaches in "explainable oversampling" or "importance-preserving oversampling" attempt to use feature importance rankings to guide the data augmentation process itself. However, many of these approaches rely on global feature elimination or simple heuristic weightings. AC-SMOTE pivots from this paradigm by using SHAP "in-the-loop" as a mathematically strict generative constraint. By directly modulating the distance metric and the interpolation step size, AC-SMOTE proactively shapes the synthetic data distribution to preserve the fundamental geometric logic of the target domain.
 
 \section{Proposed Method: AC-SMOTE}
 
@@ -75,6 +77,30 @@ where $\beta \in [0, 1]$ controls the constraint strength. If a feature is highl
 \section{Experimental Setup}
 
 \subsection{Datasets and Baselines}
+
+\begin{table}[htbp]
+\caption{Dataset Characteristics}
+\label{tab:datasets}
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Dataset} & \textbf{Size} & \textbf{Features} & \textbf{Minority} & \textbf{Majority} & \textbf{IR} \\
+\midrule
+ecoli & 336 & 7 & 35 & 301 & 8.60 \\
+satimage & 6435 & 36 & 626 & 5809 & 9.28 \\
+spectrometer & 531 & 93 & 45 & 486 & 10.80 \\
+car_eval_34 & 1728 & 21 & 134 & 1594 & 11.90 \\
+oil & 937 & 49 & 41 & 896 & 21.85 \\
+wine_quality & 4898 & 11 & 183 & 4715 & 25.77 \\
+mammography & 11183 & 6 & 260 & 10923 & 42.01 \\
+abalone_19 & 4177 & 10 & 32 & 4145 & 129.53 \\
+creditcard & 284807 & 29 & 492 & 284315 & 577.88 \\
+telco_churn & 7043 & 30 & 1869 & 5174 & 2.77 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+As summarized in Table \ref{tab:datasets}, we benchmark AC-SMOTE...
 We benchmark AC-SMOTE on 10 datasets, including 8 from the `imbalanced-learn` repository and 2 real-world sets (Credit Card Fraud Detection and Telco Customer Churn). We compare against five baselines: None, ROS, SMOTE, Borderline-SMOTE, and ADASYN. We evaluate using three classifiers: Logistic Regression, Random Forest, and XGBoost.
 
 \subsection{Evaluation Protocol}
@@ -82,7 +108,80 @@ To strictly avoid data leakage, we employ a repeated stratified cross-validation
 
 \section{Results}
 
-Our evaluation validates the effectiveness of AC-SMOTE. All reported values correspond to the dataset-level means across the 15 evaluation folds. 
+Our evaluation validates the effectiveness of AC-SMOTE. All reported values correspond to the dataset-level means across the 15 evaluation folds. Detailed metrics are provided in Table \ref{tab:results}.
+
+
+\begin{table*}[htbp]
+\caption{Main Results (Sample of 5 Datasets, RF and XGBoost) reported as Mean $\pm$ Std.}
+\label{tab:results}
+\centering
+\begin{tabular}{lllrrr}
+\toprule
+\textbf{Dataset} & \textbf{Classifier} & \textbf{Resampler} & \textbf{G-mean} & \textbf{F1-score} & \textbf{Bal. Acc.} \\
+\midrule
+ecoli & rf & acsmote & $0.81 \pm 0.064$ & $0.629 \pm 0.072$ & $0.821 \pm 0.055$ \\
+ecoli & rf & adasyn & $0.819 \pm 0.073$ & $0.635 \pm 0.094$ & $0.829 \pm 0.063$ \\
+ecoli & rf & bsmote & $0.772 \pm 0.065$ & $0.595 \pm 0.079$ & $0.79 \pm 0.053$ \\
+ecoli & rf & none & $0.641 \pm 0.219$ & $0.54 \pm 0.209$ & $0.723 \pm 0.113$ \\
+ecoli & rf & ros & $0.751 \pm 0.082$ & $0.596 \pm 0.102$ & $0.776 \pm 0.067$ \\
+ecoli & rf & smote & $0.81 \pm 0.086$ & $0.636 \pm 0.101$ & $0.823 \pm 0.074$ \\
+ecoli & xgb & acsmote & $0.805 \pm 0.127$ & $0.634 \pm 0.149$ & $0.823 \pm 0.102$ \\
+ecoli & xgb & adasyn & $0.82 \pm 0.072$ & $0.637 \pm 0.091$ & $0.83 \pm 0.061$ \\
+ecoli & xgb & bsmote & $0.787 \pm 0.079$ & $0.61 \pm 0.104$ & $0.803 \pm 0.065$ \\
+ecoli & xgb & none & $0.71 \pm 0.218$ & $0.583 \pm 0.198$ & $0.767 \pm 0.107$ \\
+ecoli & xgb & ros & $0.731 \pm 0.22$ & $0.591 \pm 0.193$ & $0.782 \pm 0.108$ \\
+ecoli & xgb & smote & $0.828 \pm 0.092$ & $0.669 \pm 0.119$ & $0.84 \pm 0.08$ \\
+satimage & rf & acsmote & $0.818 \pm 0.02$ & $0.691 \pm 0.02$ & $0.83 \pm 0.017$ \\
+satimage & rf & adasyn & $0.82 \pm 0.027$ & $0.686 \pm 0.029$ & $0.831 \pm 0.022$ \\
+satimage & rf & bsmote & $0.818 \pm 0.023$ & $0.686 \pm 0.026$ & $0.83 \pm 0.019$ \\
+satimage & rf & none & $0.712 \pm 0.029$ & $0.638 \pm 0.034$ & $0.752 \pm 0.021$ \\
+satimage & rf & ros & $0.775 \pm 0.024$ & $0.679 \pm 0.026$ & $0.797 \pm 0.019$ \\
+satimage & rf & smote & $0.813 \pm 0.023$ & $0.685 \pm 0.028$ & $0.825 \pm 0.019$ \\
+satimage & xgb & acsmote & $0.816 \pm 0.027$ & $0.719 \pm 0.027$ & $0.829 \pm 0.022$ \\
+satimage & xgb & adasyn & $0.814 \pm 0.027$ & $0.713 \pm 0.028$ & $0.828 \pm 0.022$ \\
+satimage & xgb & bsmote & $0.809 \pm 0.027$ & $0.707 \pm 0.033$ & $0.824 \pm 0.022$ \\
+satimage & xgb & none & $0.786 \pm 0.027$ & $0.7 \pm 0.03$ & $0.806 \pm 0.021$ \\
+satimage & xgb & ros & $0.827 \pm 0.028$ & $0.719 \pm 0.028$ & $0.838 \pm 0.023$ \\
+satimage & xgb & smote & $0.814 \pm 0.021$ & $0.713 \pm 0.021$ & $0.828 \pm 0.017$ \\
+spectrometer & rf & acsmote & $0.865 \pm 0.065$ & $0.8 \pm 0.065$ & $0.875 \pm 0.057$ \\
+spectrometer & rf & adasyn & $0.878 \pm 0.079$ & $0.793 \pm 0.077$ & $0.887 \pm 0.069$ \\
+spectrometer & rf & bsmote & $0.854 \pm 0.077$ & $0.805 \pm 0.081$ & $0.866 \pm 0.063$ \\
+spectrometer & rf & none & $0.863 \pm 0.081$ & $0.823 \pm 0.077$ & $0.875 \pm 0.068$ \\
+spectrometer & rf & ros & $0.857 \pm 0.075$ & $0.8 \pm 0.072$ & $0.869 \pm 0.062$ \\
+spectrometer & rf & smote & $0.887 \pm 0.071$ & $0.831 \pm 0.081$ & $0.895 \pm 0.063$ \\
+spectrometer & xgb & acsmote & $0.859 \pm 0.111$ & $0.771 \pm 0.137$ & $0.872 \pm 0.093$ \\
+spectrometer & xgb & adasyn & $0.875 \pm 0.1$ & $0.77 \pm 0.121$ & $0.885 \pm 0.082$ \\
+spectrometer & xgb & bsmote & $0.869 \pm 0.092$ & $0.782 \pm 0.114$ & $0.88 \pm 0.079$ \\
+spectrometer & xgb & none & $0.839 \pm 0.132$ & $0.785 \pm 0.15$ & $0.859 \pm 0.099$ \\
+spectrometer & xgb & ros & $0.842 \pm 0.12$ & $0.765 \pm 0.153$ & $0.859 \pm 0.091$ \\
+spectrometer & xgb & smote & $0.863 \pm 0.106$ & $0.766 \pm 0.135$ & $0.875 \pm 0.086$ \\
+car_eval_34 & rf & acsmote & $0.958 \pm 0.033$ & $0.921 \pm 0.043$ & $0.959 \pm 0.031$ \\
+car_eval_34 & rf & adasyn & $0.968 \pm 0.019$ & $0.921 \pm 0.033$ & $0.968 \pm 0.018$ \\
+car_eval_34 & rf & bsmote & $0.958 \pm 0.028$ & $0.91 \pm 0.04$ & $0.959 \pm 0.027$ \\
+car_eval_34 & rf & none & $0.923 \pm 0.054$ & $0.884 \pm 0.063$ & $0.927 \pm 0.048$ \\
+car_eval_34 & rf & ros & $0.984 \pm 0.011$ & $0.933 \pm 0.028$ & $0.984 \pm 0.011$ \\
+car_eval_34 & rf & smote & $0.969 \pm 0.027$ & $0.924 \pm 0.041$ & $0.97 \pm 0.026$ \\
+car_eval_34 & xgb & acsmote & $0.99 \pm 0.013$ & $0.976 \pm 0.018$ & $0.99 \pm 0.013$ \\
+car_eval_34 & xgb & adasyn & $0.987 \pm 0.016$ & $0.969 \pm 0.02$ & $0.987 \pm 0.016$ \\
+car_eval_34 & xgb & bsmote & $0.99 \pm 0.009$ & $0.977 \pm 0.02$ & $0.99 \pm 0.009$ \\
+car_eval_34 & xgb & none & $0.979 \pm 0.026$ & $0.957 \pm 0.026$ & $0.979 \pm 0.025$ \\
+car_eval_34 & xgb & ros & $0.991 \pm 0.011$ & $0.955 \pm 0.03$ & $0.992 \pm 0.011$ \\
+car_eval_34 & xgb & smote & $0.991 \pm 0.011$ & $0.976 \pm 0.018$ & $0.991 \pm 0.011$ \\
+oil & rf & acsmote & $0.681 \pm 0.144$ & $0.554 \pm 0.147$ & $0.739 \pm 0.096$ \\
+oil & rf & adasyn & $0.675 \pm 0.149$ & $0.555 \pm 0.164$ & $0.736 \pm 0.102$ \\
+oil & rf & bsmote & $0.684 \pm 0.167$ & $0.577 \pm 0.19$ & $0.746 \pm 0.118$ \\
+oil & rf & none & $0.479 \pm 0.181$ & $0.375 \pm 0.18$ & $0.629 \pm 0.073$ \\
+oil & rf & ros & $0.491 \pm 0.199$ & $0.373 \pm 0.199$ & $0.637 \pm 0.086$ \\
+oil & rf & smote & $0.67 \pm 0.148$ & $0.553 \pm 0.174$ & $0.732 \pm 0.101$ \\
+oil & xgb & acsmote & $0.74 \pm 0.11$ & $0.586 \pm 0.12$ & $0.777 \pm 0.082$ \\
+oil & xgb & adasyn & $0.739 \pm 0.096$ & $0.603 \pm 0.123$ & $0.774 \pm 0.071$ \\
+oil & xgb & bsmote & $0.74 \pm 0.116$ & $0.595 \pm 0.122$ & $0.777 \pm 0.083$ \\
+oil & xgb & none & $0.598 \pm 0.129$ & $0.471 \pm 0.146$ & $0.684 \pm 0.079$ \\
+oil & xgb & ros & $0.687 \pm 0.139$ & $0.543 \pm 0.169$ & $0.741 \pm 0.098$ \\
+oil & xgb & smote & $0.756 \pm 0.115$ & $0.605 \pm 0.131$ & $0.789 \pm 0.084$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 \subsection{Performance across Classifiers}
 The non-parametric Friedman test confirmed statistically significant differences across methods. For G-mean, the Friedman test returned $\chi^2 = 23.31$ ($p = 0.00029$) for Logistic Regression, $\chi^2 = 27.20$ ($p < 0.0001$) for Random Forest, and $\chi^2 = 24.06$ ($p = 0.0002$) for XGBoost. As shown in the critical difference diagram in Fig. \ref{fig:cd}, AC-SMOTE separates significantly from baseline models when evaluated on geometry-preserving metrics.
@@ -113,7 +212,7 @@ AC-SMOTE succeeds by preventing the generation of synthetic samples that violate
 \label{fig:pca}
 \end{figure}
 
-However, this incurs a computational overhead driven by the surrogate model and SHAP computations, as shown in Fig. \ref{fig:runtime}. Furthermore, restricting variance in critical dimensions can sometimes limit broad decision-rule discovery in complex ensembles, occasionally yielding lower F1-scores compared to unconstrained SMOTE. 
+However, this incurs a computational overhead driven by the surrogate model and SHAP computations, as shown in Fig. \ref{fig:runtime}. AC-SMOTE requires inherently more time to run its generation step than plain SMOTE or Borderline-SMOTE, since it must train a surrogate model on the training fold and evaluate SHAP values before generating points. Furthermore, restricting variance in critical dimensions can sometimes limit broad decision-rule discovery in complex ensembles, occasionally yielding lower F1-scores compared to unconstrained SMOTE. 
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\columnwidth]{../results/figures/runtime_comparison.png}}

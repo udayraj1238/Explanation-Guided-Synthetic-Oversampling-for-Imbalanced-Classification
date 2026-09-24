@@ -1,150 +1,150 @@
-# Attribution-Constrained SMOTE: Guiding Synthetic Oversampling with Feature Importance for Imbalanced Classification
-
-## 1. Introduction
-
-Learning from imbalanced datasets remains a foundational challenge in machine learning. When the majority class vastly outnumbers the minority class, standard classifiers naturally bias toward the majority, often producing decision boundaries that misclassify the rare, high-value instances that practitioners care most about. While algorithmic level approaches (like cost-sensitive learning) address this by modifying the training objective, data-level approaches—particularly synthetic oversampling—remain highly popular because they are classifier-agnostic and easy to integrate into existing pipelines.
-
-Since the introduction of SMOTE, many variants have been proposed, including Borderline-SMOTE and ADASYN. These methods generate synthetic minority samples by interpolating between a real minority point and its nearest neighbors. However, a significant limitation of standard SMOTE-family algorithms is that they treat all feature dimensions identically. They perform neighbor search and interpolation using standard distance metrics (like Euclidean distance) without any notion of which features actually drive the classifier's decision boundary. Consequently, they risk generating synthetic points that blur the decision boundary along the most critical features, ultimately harming downstream classification performance.
-
-In this paper, we propose Attribution-Constrained SMOTE (AC-SMOTE), a novel oversampling technique that uses explainable AI (XAI) feature attributions to guide the generation of synthetic data. By leveraging cheap, SHAP-based feature importance scores from a lightweight surrogate model, AC-SMOTE addresses the limitations of feature-agnostic oversamplers in two ways:
-1. **Attribution-weighted neighbor search:** It biases the neighbor selection toward minority points that are close on decision-relevant dimensions, ensuring that the local neighborhoods used for interpolation are faithful to the true class signal.
-2. **Attribution-constrained interpolation:** It shrinks the interpolation step size along high-importance dimensions, anchoring the synthetic points near real minority instances on critical features, while allowing full-range interpolation along low-importance dimensions to inject useful diversity.
-
-We benchmark AC-SMOTE against four standard baselines across ten public imbalanced datasets and three classifiers (Logistic Regression, Random Forest, and XGBoost). Using a rigorous nested cross-validation protocol and proper non-parametric statistical testing (Friedman and Nemenyi tests), we demonstrate the effectiveness of using feature attributions to constrain synthetic oversampling. 
-
-## 2. Related Work
-
-*(Note: Full literature search to be completed on Day 6. This is a structural sketch.)*
-
-### 2.1. Synthetic Oversampling for Imbalanced Data
-- **Standard SMOTE:** Discuss the original SMOTE algorithm and its limitation of generating samples blindly without considering the decision boundary.
-- **Boundary-focused SMOTE variants:** Discuss Borderline-SMOTE, ADASYN, and Safe-Level-SMOTE, which focus on selecting *which* points to oversample (e.g., those near the boundary) but still use feature-agnostic interpolation.
-
-### 2.2. Feature Selection and Weighting in Imbalanced Learning
-- Compare against methods that perform feature selection *before* oversampling.
-- Highlight the gap: selection drops features entirely, whereas AC-SMOTE uses soft constraints (weighting) to preserve diversity in non-critical features while tightly controlling critical ones.
-
-### 2.3. Explainable AI (XAI) and SHAP in Pipeline Design
-- Briefly cover the rise of SHAP (SHapley Additive exPlanations).
-- Discuss how XAI is typically used *post-hoc* to explain models.
-- Contrast with our approach, which integrates SHAP *in-the-loop* as a generative constraint to improve the data distribution itself.
-
-## 3. Proposed Method: Attribution-Constrained SMOTE (AC-SMOTE)
-
-Standard synthetic oversampling generates new instances by interpolating between a minority point $x_i$ and one of its $k$-nearest neighbors $x_{nn}$. Both the neighbor selection (via Euclidean distance) and the interpolation step treat all feature dimensions equally. AC-SMOTE addresses this limitation by introducing a feature attribution vector $\hat{w}$ derived from an explainable AI (XAI) surrogate model.
-
-### 3.1. Step 1: SHAP Attribution Vector
-
-Given a training dataset with features $X$ and labels $y$, we first fit a lightweight surrogate model (e.g., a Random Forest classifier). We then apply SHAP (SHapley Additive exPlanations), specifically the fast TreeExplainer, to compute the local feature attributions for all instances belonging to the minority class ($X_{min}$).
-
-Let $\Phi \in \mathbb{R}^{n_{min} \times d}$ be the matrix of absolute SHAP values for the minority class, where $n_{min}$ is the number of minority samples and $d$ is the number of features. We compute the global importance vector $w$ by averaging the absolute SHAP values across all minority instances:
-$$ w_j = \frac{1}{n_{min}} \sum_{i=1}^{n_{min}} |\Phi_{i,j}| $$
-
-To ensure numerical stability and bounded constraint application, we min-max normalize $w$ to produce the final attribution vector $\hat{w} \in [0, 1]^d$:
-$$ \hat{w}_j = \frac{w_j - \min(w)}{\max(w) - \min(w)} $$
-
-### 3.2. Step 2: Attribution-Weighted Neighbor Selection
-
-To prevent the algorithm from selecting neighbors based on irrelevant features, AC-SMOTE replaces standard Euclidean distance with an attribution-weighted distance metric. For any two minority samples $u, v \in X_{min}$, the distance is defined as:
-$$ d_w(u, v) = \sqrt{\sum_{j=1}^d \left( 1 + \alpha \hat{w}_j \right) (u_j - v_j)^2} $$
-
-Here, $\alpha \geq 0$ is a hyperparameter controlling the strength of the attribution weighting. Features with high SHAP importance ($\hat{w}_j \approx 1$) contribute more heavily to the distance, forcing the $k$-nearest neighbor search to return points that are fundamentally similar along the most critical dimensions. When $\alpha = 0$, this collapses to standard Euclidean distance.
-
-### 3.3. Step 3: Attribution-Constrained Interpolation
-
-Standard SMOTE generates a synthetic point $x_{synth}$ using a single random scalar $\lambda \sim U(0, 1)$:
-$$ x_{synth} = x_i + \lambda \times (x_{nn} - x_i) $$
-
-This formulation explores the feature space equally in all directions. AC-SMOTE applies a feature-wise constraint to restrict interpolation along critical dimensions, forcing synthetic samples to stay closer to real minority instances on important features while allowing full-range diversity on less important ones. For each feature dimension $j$, the step size $\lambda_j$ is defined as:
-$$ \lambda_j = \max\left(0, \min\left(1, \lambda \times (1 - \beta \hat{w}_j) \right)\right) $$
-
-where $\beta \in [0, 1]$ controls the constraint strength. If a feature is highly important ($\hat{w}_j \approx 1$), the step size $\lambda_j$ shrinks toward 0, anchoring the synthetic point near $x_i$. If a feature is unimportant ($\hat{w}_j \approx 0$), $\lambda_j \approx \lambda$, allowing standard exploration.
-
-The final synthetic point is generated element-wise:
-$$ x_{synth, j} = x_{i, j} + \lambda_j \times (x_{nn, j} - x_{i, j}) $$
-
-### 3.4. AC-SMOTE Pseudocode
-
-```text
-Algorithm 1: AC-SMOTE
-Input: Minority set X_min, Majority set X_maj, k_neighbors, alpha, beta, surrogate_model
-Output: Synthetic minority set X_synth
-
-1: Fit surrogate_model on (X_min U X_maj)
-2: Compute SHAP values for X_min using TreeExplainer
-3: w = mean(abs(SHAP), axis=0)
-4: w_hat = min_max_normalize(w)
-5: Compute pairwise distance matrix D for X_min using d_w(u,v, alpha, w_hat)
-6: For each x_i in X_min:
-7:     Find k nearest neighbors of x_i using D
-8:     Randomly select one neighbor x_nn
-9:     Sample lambda ~ U(0, 1)
-10:    For j = 1 to d:
-11:        lambda_j = clip(lambda * (1 - beta * w_hat[j]), 0, 1)
-12:        x_synth[j] = x_i[j] + lambda_j * (x_nn[j] - x_i[j])
-13:    Add x_synth to X_synth
-14: Return X_synth
-```
-
-## 4. Experimental Setup
-
-### 4.1. Datasets
-To ensure robust evaluation across varying degrees of class imbalance and dimensionality, we benchmark AC-SMOTE on 10 datasets: 8 standard benchmarks from the `imbalanced-learn` repository and 2 real-world tabular datasets (Credit Card Fraud Detection and Telco Customer Churn). 
-*(Note: Full dataset statistics table to be generated from dataset_manifest.json on Day 5).*
-
-### 4.2. Baselines and Classifiers
-We compare AC-SMOTE against five baseline strategies:
-1. **None:** Training directly on the imbalanced data.
-2. **ROS:** Random Over-Sampling.
-3. **SMOTE:** Standard Synthetic Minority Oversampling Technique.
-4. **Borderline-SMOTE:** Focuses oversampling on minority instances near the decision boundary.
-5. **ADASYN:** Adaptively shifts the importance of minority instances based on their difficulty to learn.
-
-To evaluate generalization across learning algorithms, we test three classifiers: Logistic Regression (linear), Random Forest (bagging), and XGBoost (boosting).
-
-### 4.3. Evaluation Protocol and Metrics
-To strictly avoid data leakage�a common pitfall in oversampling literature�we employ a rigorous repeated stratified cross-validation protocol (5 splits, 3 repeats, yielding 15 folds). Crucially, in every fold, the dataset is split *before* any oversampling occurs. The resampler is fit and applied exclusively to the training fold, while the classifier is evaluated on the original, unmodified test fold.
-
-We report five metrics to capture performance under severe imbalance: F1-score (minority class), Area Under the Precision-Recall Curve (AUC-PR), Matthews Correlation Coefficient (MCC), Geometric Mean (G-mean), and Balanced Accuracy.
-
-## 5. Results
-
-Our experimental evaluation across 10 datasets validates the effectiveness of AC-SMOTE, while also revealing nuances in how attribution-constrained oversampling interacts with different learning algorithms. All reported values correspond to the dataset-level means across the 15 evaluation folds (Repeated Stratified 5-Fold CV). Full dataset-by-dataset outcomes are provided in `results/summary_table.csv`.
-
-### 5.1. Performance across Classifiers
-
-The non-parametric Friedman test, executed across the six tested strategies (None, ROS, SMOTE, Borderline-SMOTE, ADASYN, and AC-SMOTE) using each dataset as a block, confirmed statistically significant differences across methods. For instance, evaluating the Geometric Mean (G-mean) metric, the Friedman test returned a test statistic of $\chi^2 = 23.31$ ($p = 0.00029$) for Logistic Regression, $\chi^2 = 27.20$ ($p < 0.0001$) for Random Forest, and $\chi^2 = 24.06$ ($p = 0.0002$) for XGBoost. 
-
-A post-hoc Nemenyi test (visualized in the Critical Difference Diagram, Figure 1) groups the resamplers based on their rank distributions. We observed that the choice of oversampling strongly impacts models with lower capacity or unregularized linear bounds, whereas powerful non-linear ensembles (like XGBoost) exhibit different sensitivities.
-
-### 5.2. Pairwise Evaluation: AC-SMOTE vs. Baselines
-
-To evaluate AC-SMOTE directly against individual baselines, we performed a Wilcoxon signed-rank test on the paired dataset-level means. 
-
-**Compared to No Resampling (None):**
-AC-SMOTE unequivocally improves metrics that account for class imbalance. Against the "None" baseline using Random Forest, AC-SMOTE achieved 10 wins and 0 losses for both G-mean and Balanced Accuracy ($p = 0.0019$). Similar dominance was observed for Logistic Regression (10 wins, 0 losses for both metrics). 
-
-**Compared to Basic Resampling (ROS and SMOTE):**
-When compared to Random Over-Sampling (ROS) under Logistic Regression, AC-SMOTE achieved a significant victory in F1-score (9 wins, 1 loss, $p = 0.0097$) and MCC (9 wins, 1 loss, $p = 0.0195$).
-Against standard SMOTE using Random Forest, the results were highly competitive but mixed. For G-mean, AC-SMOTE secured 6 wins and 4 losses; however, for F1-score, SMOTE outperformed AC-SMOTE on 7 out of 10 datasets. This suggests that while attribution-constrained interpolation helps preserve the underlying geometric distribution (benefitting G-mean), unconstrained SMOTE's broader feature-space exploration can sometimes yield higher precision/recall harmonic means in complex ensembles.
-
-**Compared to Density-based Resampling (Borderline-SMOTE and ADASYN):**
-AC-SMOTE demonstrated strong advantages over Borderline-SMOTE when evaluated with Random Forest, winning 8 out of 10 datasets in Balanced Accuracy ($p = 0.0195$) and 7 out of 10 in G-mean ($p = 0.0371$). Interestingly, when compared to ADASYN using XGBoost, AC-SMOTE proved vastly superior in preserving the Area Under the Precision-Recall Curve (AUC-PR), securing 9 wins and only 1 loss ($p = 0.0039$). 
-
-## 6. Discussion and Ablation Study
-
-### 6.1. Ablation on Hyperparameters ($\beta$, $\alpha$, $k$)
-To isolate the contribution of our attribution-guided constraints, we conducted an ablation study over our novel hyperparameters using XGBoost across 5 representative datasets (including the heavily imbalanced `abalone_19` and the massive `creditcard` benchmark).
-
-The ablation sweeps (stored in `ablation_results.csv`) confirm the efficacy of the interpolation constraint ($\beta$). Setting $\beta = 0$ reduces AC-SMOTE to using only attribution-weighted neighbor selection, while increasing $\beta \to 1$ tightens the interpolation step aggressively around critical SHAP features. As visualized in the $\beta$-sweep plots, intermediate values (e.g., $\beta = 0.5$ or $0.7$) typically strike the optimal balance, preventing the collapse of synthetic variance while avoiding the generation of noisy samples in critical dimensions.
-
-### 6.2. Interpretation and Limitations
-The experimental results enforce a known reality in imbalanced learning literature: no single oversampling technique universally dominates every metric and every classifier. 
-
-AC-SMOTE succeeds where standard SMOTE creates "bridge" samples that cross the true decision boundary in highly critical feature dimensions. By forcing interpolation to stay close to the parent instance on high-SHAP features, AC-SMOTE protects the integrity of those dimensions. This was distinctly visible in our PCA projections on the `wine_quality` dataset, where AC-SMOTE's synthetic instances adhered more closely to the dense clusters of true minority samples compared to the diffuse spread of standard SMOTE.
-
-However, this structural fidelity comes with two trade-offs. 
-First, there is an observable computational overhead. The runtime comparison chart demonstrates that AC-SMOTE is slower than SMOTE, driven inherently by the need to fit a surrogate model and compute TreeSHAP values prior to neighbor selection. 
-Second, in specific classifier configurations (notably Random Forest evaluated on F1-score), restricting variance in critical dimensions sometimes limits the ensemble's ability to discover broader decision rules, leading to minor losses against unconstrained SMOTE. 
-
-Despite these limitations, AC-SMOTE represents a mathematically principled approach to injecting Explainable AI (XAI) directly into the generative pipeline, proving that feature attributions can actively improve data quality rather than merely explaining it post-hoc.
+﻿—#— —A—t—t—r—i—b—u—t—i—o—n—-—C—o—n—s—t—r—a—i—n—e—d— —S—M—O—T—E—:— —G—u—i—d—i—n—g— —S—y—n—t—h—e—t—i—c— —O—v—e—r—s—a—m—p—l—i—n—g— —w—i—t—h— —F—e—a—t—u—r—e— —I—m—p—o—r—t—a—n—c—e— —f—o—r— —I—m—b—a—l—a—n—c—e—d— —C—l—a—s—s—i—f—i—c—a—t—i—o—n—
+—
+—#—#— —1—.— —I—n—t—r—o—d—u—c—t—i—o—n—
+—
+—L—e—a—r—n—i—n—g— —f—r—o—m— —i—m—b—a—l—a—n—c—e—d— —d—a—t—a—s—e—t—s— —r—e—m—a—i—n—s— —a— —f—o—u—n—d—a—t—i—o—n—a—l— —c—h—a—l—l—e—n—g—e— —i—n— —m—a—c—h—i—n—e— —l—e—a—r—n—i—n—g—.— —W—h—e—n— —t—h—e— —m—a—j—o—r—i—t—y— —c—l—a—s—s— —v—a—s—t—l—y— —o—u—t—n—u—m—b—e—r—s— —t—h—e— —m—i—n—o—r—i—t—y— —c—l—a—s—s—,— —s—t—a—n—d—a—r—d— —c—l—a—s—s—i—f—i—e—r—s— —n—a—t—u—r—a—l—l—y— —b—i—a—s— —t—o—w—a—r—d— —t—h—e— —m—a—j—o—r—i—t—y—,— —o—f—t—e—n— —p—r—o—d—u—c—i—n—g— —d—e—c—i—s—i—o—n— —b—o—u—n—d—a—r—i—e—s— —t—h—a—t— —m—i—s—c—l—a—s—s—i—f—y— —t—h—e— —r—a—r—e—,— —h—i—g—h—-—v—a—l—u—e— —i—n—s—t—a—n—c—e—s— —t—h—a—t— —p—r—a—c—t—i—t—i—o—n—e—r—s— —c—a—r—e— —m—o—s—t— —a—b—o—u—t—.— —W—h—i—l—e— —a—l—g—o—r—i—t—h—m—i—c— —l—e—v—e—l— —a—p—p—r—o—a—c—h—e—s— —(—l—i—k—e— —c—o—s—t—-—s—e—n—s—i—t—i—v—e— —l—e—a—r—n—i—n—g—)— —a—d—d—r—e—s—s— —t—h—i—s— —b—y— —m—o—d—i—f—y—i—n—g— —t—h—e— —t—r—a—i—n—i—n—g— —o—b—j—e—c—t—i—v—e—,— —d—a—t—a—-—l—e—v—e—l— —a—p—p—r—o—a—c—h—e—s———p—a—r—t—i—c—u—l—a—r—l—y— —s—y—n—t—h—e—t—i—c— —o—v—e—r—s—a—m—p—l—i—n—g———r—e—m—a—i—n— —h—i—g—h—l—y— —p—o—p—u—l—a—r— —b—e—c—a—u—s—e— —t—h—e—y— —a—r—e— —c—l—a—s—s—i—f—i—e—r—-—a—g—n—o—s—t—i—c— —a—n—d— —e—a—s—y— —t—o— —i—n—t—e—g—r—a—t—e— —i—n—t—o— —e—x—i—s—t—i—n—g— —p—i—p—e—l—i—n—e—s—.—
+—
+—S—i—n—c—e— —t—h—e— —i—n—t—r—o—d—u—c—t—i—o—n— —o—f— —S—M—O—T—E—,— —m—a—n—y— —v—a—r—i—a—n—t—s— —h—a—v—e— —b—e—e—n— —p—r—o—p—o—s—e—d—,— —i—n—c—l—u—d—i—n—g— —B—o—r—d—e—r—l—i—n—e—-—S—M—O—T—E— —a—n—d— —A—D—A—S—Y—N—.— —T—h—e—s—e— —m—e—t—h—o—d—s— —g—e—n—e—r—a—t—e— —s—y—n—t—h—e—t—i—c— —m—i—n—o—r—i—t—y— —s—a—m—p—l—e—s— —b—y— —i—n—t—e—r—p—o—l—a—t—i—n—g— —b—e—t—w—e—e—n— —a— —r—e—a—l— —m—i—n—o—r—i—t—y— —p—o—i—n—t— —a—n—d— —i—t—s— —n—e—a—r—e—s—t— —n—e—i—g—h—b—o—r—s—.— —H—o—w—e—v—e—r—,— —a— —s—i—g—n—i—f—i—c—a—n—t— —l—i—m—i—t—a—t—i—o—n— —o—f— —s—t—a—n—d—a—r—d— —S—M—O—T—E—-—f—a—m—i—l—y— —a—l—g—o—r—i—t—h—m—s— —i—s— —t—h—a—t— —t—h—e—y— —t—r—e—a—t— —a—l—l— —f—e—a—t—u—r—e— —d—i—m—e—n—s—i—o—n—s— —i—d—e—n—t—i—c—a—l—l—y—.— —T—h—e—y— —p—e—r—f—o—r—m— —n—e—i—g—h—b—o—r— —s—e—a—r—c—h— —a—n—d— —i—n—t—e—r—p—o—l—a—t—i—o—n— —u—s—i—n—g— —s—t—a—n—d—a—r—d— —d—i—s—t—a—n—c—e— —m—e—t—r—i—c—s— —(—l—i—k—e— —E—u—c—l—i—d—e—a—n— —d—i—s—t—a—n—c—e—)— —w—i—t—h—o—u—t— —a—n—y— —n—o—t—i—o—n— —o—f— —w—h—i—c—h— —f—e—a—t—u—r—e—s— —a—c—t—u—a—l—l—y— —d—r—i—v—e— —t—h—e— —c—l—a—s—s—i—f—i—e—r—'—s— —d—e—c—i—s—i—o—n— —b—o—u—n—d—a—r—y—.— —C—o—n—s—e—q—u—e—n—t—l—y—,— —t—h—e—y— —r—i—s—k— —g—e—n—e—r—a—t—i—n—g— —s—y—n—t—h—e—t—i—c— —p—o—i—n—t—s— —t—h—a—t— —b—l—u—r— —t—h—e— —d—e—c—i—s—i—o—n— —b—o—u—n—d—a—r—y— —a—l—o—n—g— —t—h—e— —m—o—s—t— —c—r—i—t—i—c—a—l— —f—e—a—t—u—r—e—s—,— —u—l—t—i—m—a—t—e—l—y— —h—a—r—m—i—n—g— —d—o—w—n—s—t—r—e—a—m— —c—l—a—s—s—i—f—i—c—a—t—i—o—n— —p—e—r—f—o—r—m—a—n—c—e—.—
+—
+—I—n— —t—h—i—s— —p—a—p—e—r—,— —w—e— —p—r—o—p—o—s—e— —A—t—t—r—i—b—u—t—i—o—n—-—C—o—n—s—t—r—a—i—n—e—d— —S—M—O—T—E— —(—A—C—-—S—M—O—T—E—)—,— —a— —n—o—v—e—l— —o—v—e—r—s—a—m—p—l—i—n—g— —t—e—c—h—n—i—q—u—e— —t—h—a—t— —u—s—e—s— —e—x—p—l—a—i—n—a—b—l—e— —A—I— —(—X—A—I—)— —f—e—a—t—u—r—e— —a—t—t—r—i—b—u—t—i—o—n—s— —t—o— —g—u—i—d—e— —t—h—e— —g—e—n—e—r—a—t—i—o—n— —o—f— —s—y—n—t—h—e—t—i—c— —d—a—t—a—.— —B—y— —l—e—v—e—r—a—g—i—n—g— —c—h—e—a—p—,— —S—H—A—P—-—b—a—s—e—d— —f—e—a—t—u—r—e— —i—m—p—o—r—t—a—n—c—e— —s—c—o—r—e—s— —f—r—o—m— —a— —l—i—g—h—t—w—e—i—g—h—t— —s—u—r—r—o—g—a—t—e— —m—o—d—e—l—,— —A—C—-—S—M—O—T—E— —a—d—d—r—e—s—s—e—s— —t—h—e— —l—i—m—i—t—a—t—i—o—n—s— —o—f— —f—e—a—t—u—r—e—-—a—g—n—o—s—t—i—c— —o—v—e—r—s—a—m—p—l—e—r—s— —i—n— —t—w—o— —w—a—y—s—:—
+—1—.— —*—*—A—t—t—r—i—b—u—t—i—o—n—-—w—e—i—g—h—t—e—d— —n—e—i—g—h—b—o—r— —s—e—a—r—c—h—:—*—*— —I—t— —b—i—a—s—e—s— —t—h—e— —n—e—i—g—h—b—o—r— —s—e—l—e—c—t—i—o—n— —t—o—w—a—r—d— —m—i—n—o—r—i—t—y— —p—o—i—n—t—s— —t—h—a—t— —a—r—e— —c—l—o—s—e— —o—n— —d—e—c—i—s—i—o—n—-—r—e—l—e—v—a—n—t— —d—i—m—e—n—s—i—o—n—s—,— —e—n—s—u—r—i—n—g— —t—h—a—t— —t—h—e— —l—o—c—a—l— —n—e—i—g—h—b—o—r—h—o—o—d—s— —u—s—e—d— —f—o—r— —i—n—t—e—r—p—o—l—a—t—i—o—n— —a—r—e— —f—a—i—t—h—f—u—l— —t—o— —t—h—e— —t—r—u—e— —c—l—a—s—s— —s—i—g—n—a—l—.—
+—2—.— —*—*—A—t—t—r—i—b—u—t—i—o—n—-—c—o—n—s—t—r—a—i—n—e—d— —i—n—t—e—r—p—o—l—a—t—i—o—n—:—*—*— —I—t— —s—h—r—i—n—k—s— —t—h—e— —i—n—t—e—r—p—o—l—a—t—i—o—n— —s—t—e—p— —s—i—z—e— —a—l—o—n—g— —h—i—g—h—-—i—m—p—o—r—t—a—n—c—e— —d—i—m—e—n—s—i—o—n—s—,— —a—n—c—h—o—r—i—n—g— —t—h—e— —s—y—n—t—h—e—t—i—c— —p—o—i—n—t—s— —n—e—a—r— —r—e—a—l— —m—i—n—o—r—i—t—y— —i—n—s—t—a—n—c—e—s— —o—n— —c—r—i—t—i—c—a—l— —f—e—a—t—u—r—e—s—,— —w—h—i—l—e— —a—l—l—o—w—i—n—g— —f—u—l—l—-—r—a—n—g—e— —i—n—t—e—r—p—o—l—a—t—i—o—n— —a—l—o—n—g— —l—o—w—-—i—m—p—o—r—t—a—n—c—e— —d—i—m—e—n—s—i—o—n—s— —t—o— —i—n—j—e—c—t— —u—s—e—f—u—l— —d—i—v—e—r—s—i—t—y—.—
+—
+—W—e— —b—e—n—c—h—m—a—r—k— —A—C—-—S—M—O—T—E— —a—g—a—i—n—s—t— —f—o—u—r— —s—t—a—n—d—a—r—d— —b—a—s—e—l—i—n—e—s— —a—c—r—o—s—s— —t—e—n— —p—u—b—l—i—c— —i—m—b—a—l—a—n—c—e—d— —d—a—t—a—s—e—t—s— —a—n—d— —t—h—r—e—e— —c—l—a—s—s—i—f—i—e—r—s— —(—L—o—g—i—s—t—i—c— —R—e—g—r—e—s—s—i—o—n—,— —R—a—n—d—o—m— —F—o—r—e—s—t—,— —a—n—d— —X—G—B—o—o—s—t—)—.— —U—s—i—n—g— —a— —r—i—g—o—r—o—u—s— —n—e—s—t—e—d— —c—r—o—s—s—-—v—a—l—i—d—a—t—i—o—n— —p—r—o—t—o—c—o—l— —a—n—d— —p—r—o—p—e—r— —n—o—n—-—p—a—r—a—m—e—t—r—i—c— —s—t—a—t—i—s—t—i—c—a—l— —t—e—s—t—i—n—g— —(—F—r—i—e—d—m—a—n— —a—n—d— —N—e—m—e—n—y—i— —t—e—s—t—s—)—,— —w—e— —d—e—m—o—n—s—t—r—a—t—e— —t—h—e— —e—f—f—e—c—t—i—v—e—n—e—s—s— —o—f— —u—s—i—n—g— —f—e—a—t—u—r—e— —a—t—t—r—i—b—u—t—i—o—n—s— —t—o— —c—o—n—s—t—r—a—i—n— —s—y—n—t—h—e—t—i—c— —o—v—e—r—s—a—m—p—l—i—n—g—.— —
+—
+—#—#— —2—.— —R—e—l—a—t—e—d— —W—o—r—k—
+—
+—*—(—N—o—t—e—:— —F—u—l—l— —l—i—t—e—r—a—t—u—r—e— —s—e—a—r—c—h— —t—o— —b—e— —c—o—m—p—l—e—t—e—d— —o—n— —D—a—y— —6—.— —T—h—i—s— —i—s— —a— —s—t—r—u—c—t—u—r—a—l— —s—k—e—t—c—h—.—)—*—
+—
+—#—#—#— —2—.—1—.— —S—y—n—t—h—e—t—i—c— —O—v—e—r—s—a—m—p—l—i—n—g— —f—o—r— —I—m—b—a—l—a—n—c—e—d— —D—a—t—a—
+—-— —*—*—S—t—a—n—d—a—r—d— —S—M—O—T—E—:—*—*— —D—i—s—c—u—s—s— —t—h—e— —o—r—i—g—i—n—a—l— —S—M—O—T—E— —a—l—g—o—r—i—t—h—m— —a—n—d— —i—t—s— —l—i—m—i—t—a—t—i—o—n— —o—f— —g—e—n—e—r—a—t—i—n—g— —s—a—m—p—l—e—s— —b—l—i—n—d—l—y— —w—i—t—h—o—u—t— —c—o—n—s—i—d—e—r—i—n—g— —t—h—e— —d—e—c—i—s—i—o—n— —b—o—u—n—d—a—r—y—.—
+—-— —*—*—B—o—u—n—d—a—r—y—-—f—o—c—u—s—e—d— —S—M—O—T—E— —v—a—r—i—a—n—t—s—:—*—*— —D—i—s—c—u—s—s— —B—o—r—d—e—r—l—i—n—e—-—S—M—O—T—E—,— —A—D—A—S—Y—N—,— —a—n—d— —S—a—f—e—-—L—e—v—e—l—-—S—M—O—T—E—,— —w—h—i—c—h— —f—o—c—u—s— —o—n— —s—e—l—e—c—t—i—n—g— —*—w—h—i—c—h—*— —p—o—i—n—t—s— —t—o— —o—v—e—r—s—a—m—p—l—e— —(—e—.—g—.—,— —t—h—o—s—e— —n—e—a—r— —t—h—e— —b—o—u—n—d—a—r—y—)— —b—u—t— —s—t—i—l—l— —u—s—e— —f—e—a—t—u—r—e—-—a—g—n—o—s—t—i—c— —i—n—t—e—r—p—o—l—a—t—i—o—n—.—
+—
+—#—#—#— —2—.—2—.— —F—e—a—t—u—r—e— —S—e—l—e—c—t—i—o—n— —a—n—d— —W—e—i—g—h—t—i—n—g— —i—n— —I—m—b—a—l—a—n—c—e—d— —L—e—a—r—n—i—n—g—
+—-— —C—o—m—p—a—r—e— —a—g—a—i—n—s—t— —m—e—t—h—o—d—s— —t—h—a—t— —p—e—r—f—o—r—m— —f—e—a—t—u—r—e— —s—e—l—e—c—t—i—o—n— —*—b—e—f—o—r—e—*— —o—v—e—r—s—a—m—p—l—i—n—g—.—
+—-— —H—i—g—h—l—i—g—h—t— —t—h—e— —g—a—p—:— —s—e—l—e—c—t—i—o—n— —d—r—o—p—s— —f—e—a—t—u—r—e—s— —e—n—t—i—r—e—l—y—,— —w—h—e—r—e—a—s— —A—C—-—S—M—O—T—E— —u—s—e—s— —s—o—f—t— —c—o—n—s—t—r—a—i—n—t—s— —(—w—e—i—g—h—t—i—n—g—)— —t—o— —p—r—e—s—e—r—v—e— —d—i—v—e—r—s—i—t—y— —i—n— —n—o—n—-—c—r—i—t—i—c—a—l— —f—e—a—t—u—r—e—s— —w—h—i—l—e— —t—i—g—h—t—l—y— —c—o—n—t—r—o—l—l—i—n—g— —c—r—i—t—i—c—a—l— —o—n—e—s—.—
+—
+—#—#—#— —2—.—3—.— —E—x—p—l—a—i—n—a—b—l—e— —A—I— —(—X—A—I—)— —a—n—d— —S—H—A—P— —i—n— —P—i—p—e—l—i—n—e— —D—e—s—i—g—n—
+—-— —B—r—i—e—f—l—y— —c—o—v—e—r— —t—h—e— —r—i—s—e— —o—f— —S—H—A—P— —(—S—H—a—p—l—e—y— —A—d—d—i—t—i—v—e— —e—x—P—l—a—n—a—t—i—o—n—s—)—.—
+—-— —D—i—s—c—u—s—s— —h—o—w— —X—A—I— —i—s— —t—y—p—i—c—a—l—l—y— —u—s—e—d— —*—p—o—s—t—-—h—o—c—*— —t—o— —e—x—p—l—a—i—n— —m—o—d—e—l—s—.—
+—-— —C—o—n—t—r—a—s—t— —w—i—t—h— —o—u—r— —a—p—p—r—o—a—c—h—,— —w—h—i—c—h— —i—n—t—e—g—r—a—t—e—s— —S—H—A—P— —*—i—n—-—t—h—e—-—l—o—o—p—*— —a—s— —a— —g—e—n—e—r—a—t—i—v—e— —c—o—n—s—t—r—a—i—n—t— —t—o— —i—m—p—r—o—v—e— —t—h—e— —d—a—t—a— —d—i—s—t—r—i—b—u—t—i—o—n— —i—t—s—e—l—f—.—
+—
+—#—#— —3—.— —P—r—o—p—o—s—e—d— —M—e—t—h—o—d—:— —A—t—t—r—i—b—u—t—i—o—n—-—C—o—n—s—t—r—a—i—n—e—d— —S—M—O—T—E— —(—A—C—-—S—M—O—T—E—)—
+—
+—S—t—a—n—d—a—r—d— —s—y—n—t—h—e—t—i—c— —o—v—e—r—s—a—m—p—l—i—n—g— —g—e—n—e—r—a—t—e—s— —n—e—w— —i—n—s—t—a—n—c—e—s— —b—y— —i—n—t—e—r—p—o—l—a—t—i—n—g— —b—e—t—w—e—e—n— —a— —m—i—n—o—r—i—t—y— —p—o—i—n—t— —$—x—_—i—$— —a—n—d— —o—n—e— —o—f— —i—t—s— —$—k—$—-—n—e—a—r—e—s—t— —n—e—i—g—h—b—o—r—s— —$—x—_—{—n—n—}—$—.— —B—o—t—h— —t—h—e— —n—e—i—g—h—b—o—r— —s—e—l—e—c—t—i—o—n— —(—v—i—a— —E—u—c—l—i—d—e—a—n— —d—i—s—t—a—n—c—e—)— —a—n—d— —t—h—e— —i—n—t—e—r—p—o—l—a—t—i—o—n— —s—t—e—p— —t—r—e—a—t— —a—l—l— —f—e—a—t—u—r—e— —d—i—m—e—n—s—i—o—n—s— —e—q—u—a—l—l—y—.— —A—C—-—S—M—O—T—E— —a—d—d—r—e—s—s—e—s— —t—h—i—s— —l—i—m—i—t—a—t—i—o—n— —b—y— —i—n—t—r—o—d—u—c—i—n—g— —a— —f—e—a—t—u—r—e— —a—t—t—r—i—b—u—t—i—o—n— —v—e—c—t—o—r— —$—\—h—a—t—{—w—}—$— —d—e—r—i—v—e—d— —f—r—o—m— —a—n— —e—x—p—l—a—i—n—a—b—l—e— —A—I— —(—X—A—I—)— —s—u—r—r—o—g—a—t—e— —m—o—d—e—l—.—
+—
+—#—#—#— —3—.—1—.— —S—t—e—p— —1—:— —S—H—A—P— —A—t—t—r—i—b—u—t—i—o—n— —V—e—c—t—o—r—
+—
+—G—i—v—e—n— —a— —t—r—a—i—n—i—n—g— —d—a—t—a—s—e—t— —w—i—t—h— —f—e—a—t—u—r—e—s— —$—X—$— —a—n—d— —l—a—b—e—l—s— —$—y—$—,— —w—e— —f—i—r—s—t— —f—i—t— —a— —l—i—g—h—t—w—e—i—g—h—t— —s—u—r—r—o—g—a—t—e— —m—o—d—e—l— —(—e—.—g—.—,— —a— —R—a—n—d—o—m— —F—o—r—e—s—t— —c—l—a—s—s—i—f—i—e—r—)—.— —W—e— —t—h—e—n— —a—p—p—l—y— —S—H—A—P— —(—S—H—a—p—l—e—y— —A—d—d—i—t—i—v—e— —e—x—P—l—a—n—a—t—i—o—n—s—)—,— —s—p—e—c—i—f—i—c—a—l—l—y— —t—h—e— —f—a—s—t— —T—r—e—e—E—x—p—l—a—i—n—e—r—,— —t—o— —c—o—m—p—u—t—e— —t—h—e— —l—o—c—a—l— —f—e—a—t—u—r—e— —a—t—t—r—i—b—u—t—i—o—n—s— —f—o—r— —a—l—l— —i—n—s—t—a—n—c—e—s— —b—e—l—o—n—g—i—n—g— —t—o— —t—h—e— —m—i—n—o—r—i—t—y— —c—l—a—s—s— —(—$—X—_—{—m—i—n—}—$—)—.—
+—
+—L—e—t— —$—\—P—h—i— —\—i—n— —\—m—a—t—h—b—b—{—R—}—^—{—n—_—{—m—i—n—}— —\—t—i—m—e—s— —d—}—$— —b—e— —t—h—e— —m—a—t—r—i—x— —o—f— —a—b—s—o—l—u—t—e— —S—H—A—P— —v—a—l—u—e—s— —f—o—r— —t—h—e— —m—i—n—o—r—i—t—y— —c—l—a—s—s—,— —w—h—e—r—e— —$—n—_—{—m—i—n—}—$— —i—s— —t—h—e— —n—u—m—b—e—r— —o—f— —m—i—n—o—r—i—t—y— —s—a—m—p—l—e—s— —a—n—d— —$—d—$— —i—s— —t—h—e— —n—u—m—b—e—r— —o—f— —f—e—a—t—u—r—e—s—.— —W—e— —c—o—m—p—u—t—e— —t—h—e— —g—l—o—b—a—l— —i—m—p—o—r—t—a—n—c—e— —v—e—c—t—o—r— —$—w—$— —b—y— —a—v—e—r—a—g—i—n—g— —t—h—e— —a—b—s—o—l—u—t—e— —S—H—A—P— —v—a—l—u—e—s— —a—c—r—o—s—s— —a—l—l— —m—i—n—o—r—i—t—y— —i—n—s—t—a—n—c—e—s—:—
+—$—$— —w—_—j— —=— —\—f—r—a—c—{—1—}—{—n—_—{—m—i—n—}—}— —\—s—u—m—_—{—i—=—1—}—^—{—n—_—{—m—i—n—}—}— —|—\—P—h—i—_—{—i—,—j—}—|— —$—$—
+—
+—T—o— —e—n—s—u—r—e— —n—u—m—e—r—i—c—a—l— —s—t—a—b—i—l—i—t—y— —a—n—d— —b—o—u—n—d—e—d— —c—o—n—s—t—r—a—i—n—t— —a—p—p—l—i—c—a—t—i—o—n—,— —w—e— —m—i—n—-—m—a—x— —n—o—r—m—a—l—i—z—e— —$—w—$— —t—o— —p—r—o—d—u—c—e— —t—h—e— —f—i—n—a—l— —a—t—t—r—i—b—u—t—i—o—n— —v—e—c—t—o—r— —$—\—h—a—t—{—w—}— —\—i—n— —[—0—,— —1—]—^—d—$—:—
+—$—$— —\—h—a—t—{—w—}—_—j— —=— —\—f—r—a—c—{—w—_—j— —-— —\—m—i—n—(—w—)—}—{—\—m—a—x—(—w—)— —-— —\—m—i—n—(—w—)—}— —$—$—
+—
+—#—#—#— —3—.—2—.— —S—t—e—p— —2—:— —A—t—t—r—i—b—u—t—i—o—n—-—W—e—i—g—h—t—e—d— —N—e—i—g—h—b—o—r— —S—e—l—e—c—t—i—o—n—
+—
+—T—o— —p—r—e—v—e—n—t— —t—h—e— —a—l—g—o—r—i—t—h—m— —f—r—o—m— —s—e—l—e—c—t—i—n—g— —n—e—i—g—h—b—o—r—s— —b—a—s—e—d— —o—n— —i—r—r—e—l—e—v—a—n—t— —f—e—a—t—u—r—e—s—,— —A—C—-—S—M—O—T—E— —r—e—p—l—a—c—e—s— —s—t—a—n—d—a—r—d— —E—u—c—l—i—d—e—a—n— —d—i—s—t—a—n—c—e— —w—i—t—h— —a—n— —a—t—t—r—i—b—u—t—i—o—n—-—w—e—i—g—h—t—e—d— —d—i—s—t—a—n—c—e— —m—e—t—r—i—c—.— —F—o—r— —a—n—y— —t—w—o— —m—i—n—o—r—i—t—y— —s—a—m—p—l—e—s— —$—u—,— —v— —\—i—n— —X—_—{—m—i—n—}—$—,— —t—h—e— —d—i—s—t—a—n—c—e— —i—s— —d—e—f—i—n—e—d— —a—s—:—
+—$—$— —d—_—w—(—u—,— —v—)— —=— —\—s—q—r—t—{—\—s—u—m—_—{—j—=—1—}—^—d— —\—l—e—f—t—(— —1— —+— —\—a—l—p—h—a— —\—h—a—t—{—w—}—_—j— —\—r—i—g—h—t—)— —(—u—_—j— —-— —v—_—j—)—^—2—}— —$—$—
+—
+—H—e—r—e—,— —$—\—a—l—p—h—a— —\—g—e—q— —0—$— —i—s— —a— —h—y—p—e—r—p—a—r—a—m—e—t—e—r— —c—o—n—t—r—o—l—l—i—n—g— —t—h—e— —s—t—r—e—n—g—t—h— —o—f— —t—h—e— —a—t—t—r—i—b—u—t—i—o—n— —w—e—i—g—h—t—i—n—g—.— —F—e—a—t—u—r—e—s— —w—i—t—h— —h—i—g—h— —S—H—A—P— —i—m—p—o—r—t—a—n—c—e— —(—$—\—h—a—t—{—w—}—_—j— —\—a—p—p—r—o—x— —1—$—)— —c—o—n—t—r—i—b—u—t—e— —m—o—r—e— —h—e—a—v—i—l—y— —t—o— —t—h—e— —d—i—s—t—a—n—c—e—,— —f—o—r—c—i—n—g— —t—h—e— —$—k—$—-—n—e—a—r—e—s—t— —n—e—i—g—h—b—o—r— —s—e—a—r—c—h— —t—o— —r—e—t—u—r—n— —p—o—i—n—t—s— —t—h—a—t— —a—r—e— —f—u—n—d—a—m—e—n—t—a—l—l—y— —s—i—m—i—l—a—r— —a—l—o—n—g— —t—h—e— —m—o—s—t— —c—r—i—t—i—c—a—l— —d—i—m—e—n—s—i—o—n—s—.— —W—h—e—n— —$—\—a—l—p—h—a— —=— —0—$—,— —t—h—i—s— —c—o—l—l—a—p—s—e—s— —t—o— —s—t—a—n—d—a—r—d— —E—u—c—l—i—d—e—a—n— —d—i—s—t—a—n—c—e—.—
+—
+—#—#—#— —3—.—3—.— —S—t—e—p— —3—:— —A—t—t—r—i—b—u—t—i—o—n—-—C—o—n—s—t—r—a—i—n—e—d— —I—n—t—e—r—p—o—l—a—t—i—o—n—
+—
+—S—t—a—n—d—a—r—d— —S—M—O—T—E— —g—e—n—e—r—a—t—e—s— —a— —s—y—n—t—h—e—t—i—c— —p—o—i—n—t— —$—x—_—{—s—y—n—t—h—}—$— —u—s—i—n—g— —a— —s—i—n—g—l—e— —r—a—n—d—o—m— —s—c—a—l—a—r— —$—\—l—a—m—b—d—a— —\—s—i—m— —U—(—0—,— —1—)—$—:—
+—$—$— —x—_—{—s—y—n—t—h—}— —=— —x—_—i— —+— —\—l—a—m—b—d—a— —\—t—i—m—e—s— —(—x—_—{—n—n—}— —-— —x—_—i—)— —$—$—
+—
+—T—h—i—s— —f—o—r—m—u—l—a—t—i—o—n— —e—x—p—l—o—r—e—s— —t—h—e— —f—e—a—t—u—r—e— —s—p—a—c—e— —e—q—u—a—l—l—y— —i—n— —a—l—l— —d—i—r—e—c—t—i—o—n—s—.— —A—C—-—S—M—O—T—E— —a—p—p—l—i—e—s— —a— —f—e—a—t—u—r—e—-—w—i—s—e— —c—o—n—s—t—r—a—i—n—t— —t—o— —r—e—s—t—r—i—c—t— —i—n—t—e—r—p—o—l—a—t—i—o—n— —a—l—o—n—g— —c—r—i—t—i—c—a—l— —d—i—m—e—n—s—i—o—n—s—,— —f—o—r—c—i—n—g— —s—y—n—t—h—e—t—i—c— —s—a—m—p—l—e—s— —t—o— —s—t—a—y— —c—l—o—s—e—r— —t—o— —r—e—a—l— —m—i—n—o—r—i—t—y— —i—n—s—t—a—n—c—e—s— —o—n— —i—m—p—o—r—t—a—n—t— —f—e—a—t—u—r—e—s— —w—h—i—l—e— —a—l—l—o—w—i—n—g— —f—u—l—l—-—r—a—n—g—e— —d—i—v—e—r—s—i—t—y— —o—n— —l—e—s—s— —i—m—p—o—r—t—a—n—t— —o—n—e—s—.— —F—o—r— —e—a—c—h— —f—e—a—t—u—r—e— —d—i—m—e—n—s—i—o—n— —$—j—$—,— —t—h—e— —s—t—e—p— —s—i—z—e— —$—\—l—a—m—b—d—a—_—j—$— —i—s— —d—e—f—i—n—e—d— —a—s—:—
+—$—$— —\—l—a—m—b—d—a—_—j— —=— —\—m—a—x—\—l—e—f—t—(—0—,— —\—m—i—n—\—l—e—f—t—(—1—,— —\—l—a—m—b—d—a— —\—t—i—m—e—s— —(—1— —-— —\—b—e—t—a— —\—h—a—t—{—w—}—_—j—)— —\—r—i—g—h—t—)—\—r—i—g—h—t—)— —$—$—
+—
+—w—h—e—r—e— —$—\—b—e—t—a— —\—i—n— —[—0—,— —1—]—$— —c—o—n—t—r—o—l—s— —t—h—e— —c—o—n—s—t—r—a—i—n—t— —s—t—r—e—n—g—t—h—.— —I—f— —a— —f—e—a—t—u—r—e— —i—s— —h—i—g—h—l—y— —i—m—p—o—r—t—a—n—t— —(—$—\—h—a—t—{—w—}—_—j— —\—a—p—p—r—o—x— —1—$—)—,— —t—h—e— —s—t—e—p— —s—i—z—e— —$—\—l—a—m—b—d—a—_—j—$— —s—h—r—i—n—k—s— —t—o—w—a—r—d— —0—,— —a—n—c—h—o—r—i—n—g— —t—h—e— —s—y—n—t—h—e—t—i—c— —p—o—i—n—t— —n—e—a—r— —$—x—_—i—$—.— —I—f— —a— —f—e—a—t—u—r—e— —i—s— —u—n—i—m—p—o—r—t—a—n—t— —(—$—\—h—a—t—{—w—}—_—j— —\—a—p—p—r—o—x— —0—$—)—,— —$—\—l—a—m—b—d—a—_—j— —\—a—p—p—r—o—x— —\—l—a—m—b—d—a—$—,— —a—l—l—o—w—i—n—g— —s—t—a—n—d—a—r—d— —e—x—p—l—o—r—a—t—i—o—n—.—
+—
+—T—h—e— —f—i—n—a—l— —s—y—n—t—h—e—t—i—c— —p—o—i—n—t— —i—s— —g—e—n—e—r—a—t—e—d— —e—l—e—m—e—n—t—-—w—i—s—e—:—
+—$—$— —x—_—{—s—y—n—t—h—,— —j—}— —=— —x—_—{—i—,— —j—}— —+— —\—l—a—m—b—d—a—_—j— —\—t—i—m—e—s— —(—x—_—{—n—n—,— —j—}— —-— —x—_—{—i—,— —j—}—)— —$—$—
+—
+—#—#—#— —3—.—4—.— —A—C—-—S—M—O—T—E— —P—s—e—u—d—o—c—o—d—e—
+—
+—`—`—`—t—e—x—t—
+—A—l—g—o—r—i—t—h—m— —1—:— —A—C—-—S—M—O—T—E—
+—I—n—p—u—t—:— —M—i—n—o—r—i—t—y— —s—e—t— —X—_—m—i—n—,— —M—a—j—o—r—i—t—y— —s—e—t— —X—_—m—a—j—,— —k—_—n—e—i—g—h—b—o—r—s—,— —a—l—p—h—a—,— —b—e—t—a—,— —s—u—r—r—o—g—a—t—e—_—m—o—d—e—l—
+—O—u—t—p—u—t—:— —S—y—n—t—h—e—t—i—c— —m—i—n—o—r—i—t—y— —s—e—t— —X—_—s—y—n—t—h—
+—
+—1—:— —F—i—t— —s—u—r—r—o—g—a—t—e—_—m—o—d—e—l— —o—n— —(—X—_—m—i—n— —U— —X—_—m—a—j—)—
+—2—:— —C—o—m—p—u—t—e— —S—H—A—P— —v—a—l—u—e—s— —f—o—r— —X—_—m—i—n— —u—s—i—n—g— —T—r—e—e—E—x—p—l—a—i—n—e—r—
+—3—:— —w— —=— —m—e—a—n—(—a—b—s—(—S—H—A—P—)—,— —a—x—i—s—=—0—)—
+—4—:— —w—_—h—a—t— —=— —m—i—n—_—m—a—x—_—n—o—r—m—a—l—i—z—e—(—w—)—
+—5—:— —C—o—m—p—u—t—e— —p—a—i—r—w—i—s—e— —d—i—s—t—a—n—c—e— —m—a—t—r—i—x— —D— —f—o—r— —X—_—m—i—n— —u—s—i—n—g— —d—_—w—(—u—,—v—,— —a—l—p—h—a—,— —w—_—h—a—t—)—
+—6—:— —F—o—r— —e—a—c—h— —x—_—i— —i—n— —X—_—m—i—n—:—
+—7—:— — — — — —F—i—n—d— —k— —n—e—a—r—e—s—t— —n—e—i—g—h—b—o—r—s— —o—f— —x—_—i— —u—s—i—n—g— —D—
+—8—:— — — — — —R—a—n—d—o—m—l—y— —s—e—l—e—c—t— —o—n—e— —n—e—i—g—h—b—o—r— —x—_—n—n—
+—9—:— — — — — —S—a—m—p—l—e— —l—a—m—b—d—a— —~— —U—(—0—,— —1—)—
+—1—0—:— — — — —F—o—r— —j— —=— —1— —t—o— —d—:—
+—1—1—:— — — — — — — — —l—a—m—b—d—a—_—j— —=— —c—l—i—p—(—l—a—m—b—d—a— —*— —(—1— —-— —b—e—t—a— —*— —w—_—h—a—t—[—j—]—)—,— —0—,— —1—)—
+—1—2—:— — — — — — — — —x—_—s—y—n—t—h—[—j—]— —=— —x—_—i—[—j—]— —+— —l—a—m—b—d—a—_—j— —*— —(—x—_—n—n—[—j—]— —-— —x—_—i—[—j—]—)—
+—1—3—:— — — — —A—d—d— —x—_—s—y—n—t—h— —t—o— —X—_—s—y—n—t—h—
+—1—4—:— —R—e—t—u—r—n— —X—_—s—y—n—t—h—
+—`—`—`—
+—
+—#—#— —4—.— —E—x—p—e—r—i—m—e—n—t—a—l— —S—e—t—u—p—
+—
+—#—#—#— —4—.—1—.— —D—a—t—a—s—e—t—s—
+—T—o— —e—n—s—u—r—e— —r—o—b—u—s—t— —e—v—a—l—u—a—t—i—o—n— —a—c—r—o—s—s— —v—a—r—y—i—n—g— —d—e—g—r—e—e—s— —o—f— —c—l—a—s—s— —i—m—b—a—l—a—n—c—e— —a—n—d— —d—i—m—e—n—s—i—o—n—a—l—i—t—y—,— —w—e— —b—e—n—c—h—m—a—r—k— —A—C—-—S—M—O—T—E— —o—n— —1—0— —d—a—t—a—s—e—t—s—:— —8— —s—t—a—n—d—a—r—d— —b—e—n—c—h—m—a—r—k—s— —f—r—o—m— —t—h—e— —`—i—m—b—a—l—a—n—c—e—d—-—l—e—a—r—n—`— —r—e—p—o—s—i—t—o—r—y— —a—n—d— —2— —r—e—a—l—-—w—o—r—l—d— —t—a—b—u—l—a—r— —d—a—t—a—s—e—t—s— —(—C—r—e—d—i—t— —C—a—r—d— —F—r—a—u—d— —D—e—t—e—c—t—i—o—n— —a—n—d— —T—e—l—c—o— —C—u—s—t—o—m—e—r— —C—h—u—r—n—)—.— —
+—*—(—N—o—t—e—:— —F—u—l—l— —d—a—t—a—s—e—t— —s—t—a—t—i—s—t—i—c—s— —t—a—b—l—e— —t—o— —b—e— —g—e—n—e—r—a—t—e—d— —f—r—o—m— —d—a—t—a—s—e—t—_—m—a—n—i—f—e—s—t—.—j—s—o—n— —o—n— —D—a—y— —5—)—.—*—
+—
+—#—#—#— —4—.—2—.— —B—a—s—e—l—i—n—e—s— —a—n—d— —C—l—a—s—s—i—f—i—e—r—s—
+—W—e— —c—o—m—p—a—r—e— —A—C—-—S—M—O—T—E— —a—g—a—i—n—s—t— —f—i—v—e— —b—a—s—e—l—i—n—e— —s—t—r—a—t—e—g—i—e—s—:—
+—1—.— —*—*—N—o—n—e—:—*—*— —T—r—a—i—n—i—n—g— —d—i—r—e—c—t—l—y— —o—n— —t—h—e— —i—m—b—a—l—a—n—c—e—d— —d—a—t—a—.—
+—2—.— —*—*—R—O—S—:—*—*— —R—a—n—d—o—m— —O—v—e—r—-—S—a—m—p—l—i—n—g—.—
+—3—.— —*—*—S—M—O—T—E—:—*—*— —S—t—a—n—d—a—r—d— —S—y—n—t—h—e—t—i—c— —M—i—n—o—r—i—t—y— —O—v—e—r—s—a—m—p—l—i—n—g— —T—e—c—h—n—i—q—u—e—.—
+—4—.— —*—*—B—o—r—d—e—r—l—i—n—e—-—S—M—O—T—E—:—*—*— —F—o—c—u—s—e—s— —o—v—e—r—s—a—m—p—l—i—n—g— —o—n— —m—i—n—o—r—i—t—y— —i—n—s—t—a—n—c—e—s— —n—e—a—r— —t—h—e— —d—e—c—i—s—i—o—n— —b—o—u—n—d—a—r—y—.—
+—5—.— —*—*—A—D—A—S—Y—N—:—*—*— —A—d—a—p—t—i—v—e—l—y— —s—h—i—f—t—s— —t—h—e— —i—m—p—o—r—t—a—n—c—e— —o—f— —m—i—n—o—r—i—t—y— —i—n—s—t—a—n—c—e—s— —b—a—s—e—d— —o—n— —t—h—e—i—r— —d—i—f—f—i—c—u—l—t—y— —t—o— —l—e—a—r—n—.—
+—
+—T—o— —e—v—a—l—u—a—t—e— —g—e—n—e—r—a—l—i—z—a—t—i—o—n— —a—c—r—o—s—s— —l—e—a—r—n—i—n—g— —a—l—g—o—r—i—t—h—m—s—,— —w—e— —t—e—s—t— —t—h—r—e—e— —c—l—a—s—s—i—f—i—e—r—s—:— —L—o—g—i—s—t—i—c— —R—e—g—r—e—s—s—i—o—n— —(—l—i—n—e—a—r—)—,— —R—a—n—d—o—m— —F—o—r—e—s—t— —(—b—a—g—g—i—n—g—)—,— —a—n—d— —X—G—B—o—o—s—t— —(—b—o—o—s—t—i—n—g—)—.—
+—
+—#—#—#— —4—.—3—.— —E—v—a—l—u—a—t—i—o—n— —P—r—o—t—o—c—o—l— —a—n—d— —M—e—t—r—i—c—s—
+—T—o— —s—t—r—i—c—t—l—y— —a—v—o—i—d— —d—a—t—a— —l—e—a—k—a—g—e———a— —c—o—m—m—o—n— —p—i—t—f—a—l—l— —i—n— —o—v—e—r—s—a—m—p—l—i—n—g— —l—i—t—e—r—a—t—u—r—e———w—e— —e—m—p—l—o—y— —a— —r—i—g—o—r—o—u—s— —r—e—p—e—a—t—e—d— —s—t—r—a—t—i—f—i—e—d— —c—r—o—s—s—-—v—a—l—i—d—a—t—i—o—n— —p—r—o—t—o—c—o—l— —(—5— —s—p—l—i—t—s—,— —3— —r—e—p—e—a—t—s—,— —y—i—e—l—d—i—n—g— —1—5— —f—o—l—d—s—)—.— —C—r—u—c—i—a—l—l—y—,— —i—n— —e—v—e—r—y— —f—o—l—d—,— —t—h—e— —d—a—t—a—s—e—t— —i—s— —s—p—l—i—t— —*—b—e—f—o—r—e—*— —a—n—y— —o—v—e—r—s—a—m—p—l—i—n—g— —o—c—c—u—r—s—.— —T—h—e— —r—e—s—a—m—p—l—e—r— —i—s— —f—i—t— —a—n—d— —a—p—p—l—i—e—d— —e—x—c—l—u—s—i—v—e—l—y— —t—o— —t—h—e— —t—r—a—i—n—i—n—g— —f—o—l—d—,— —w—h—i—l—e— —t—h—e— —c—l—a—s—s—i—f—i—e—r— —i—s— —e—v—a—l—u—a—t—e—d— —o—n— —t—h—e— —o—r—i—g—i—n—a—l—,— —u—n—m—o—d—i—f—i—e—d— —t—e—s—t— —f—o—l—d—.—
+—
+—W—e— —r—e—p—o—r—t— —f—i—v—e— —m—e—t—r—i—c—s— —t—o— —c—a—p—t—u—r—e— —p—e—r—f—o—r—m—a—n—c—e— —u—n—d—e—r— —s—e—v—e—r—e— —i—m—b—a—l—a—n—c—e—:— —F—1—-—s—c—o—r—e— —(—m—i—n—o—r—i—t—y— —c—l—a—s—s—)—,— —A—r—e—a— —U—n—d—e—r— —t—h—e— —P—r—e—c—i—s—i—o—n—-—R—e—c—a—l—l— —C—u—r—v—e— —(—A—U—C—-—P—R—)—,— —M—a—t—t—h—e—w—s— —C—o—r—r—e—l—a—t—i—o—n— —C—o—e—f—f—i—c—i—e—n—t— —(—M—C—C—)—,— —G—e—o—m—e—t—r—i—c— —M—e—a—n— —(—G—-—m—e—a—n—)—,— —a—n—d— —B—a—l—a—n—c—e—d— —A—c—c—u—r—a—c—y—.—
+—
+—#—#— —5—.— —R—e—s—u—l—t—s—
+—
+—O—u—r— —e—x—p—e—r—i—m—e—n—t—a—l— —e—v—a—l—u—a—t—i—o—n— —a—c—r—o—s—s— —1—0— —d—a—t—a—s—e—t—s— —v—a—l—i—d—a—t—e—s— —t—h—e— —e—f—f—e—c—t—i—v—e—n—e—s—s— —o—f— —A—C—-—S—M—O—T—E—,— —w—h—i—l—e— —a—l—s—o— —r—e—v—e—a—l—i—n—g— —n—u—a—n—c—e—s— —i—n— —h—o—w— —a—t—t—r—i—b—u—t—i—o—n—-—c—o—n—s—t—r—a—i—n—e—d— —o—v—e—r—s—a—m—p—l—i—n—g— —i—n—t—e—r—a—c—t—s— —w—i—t—h— —d—i—f—f—e—r—e—n—t— —l—e—a—r—n—i—n—g— —a—l—g—o—r—i—t—h—m—s—.— —A—l—l— —r—e—p—o—r—t—e—d— —v—a—l—u—e—s— —c—o—r—r—e—s—p—o—n—d— —t—o— —t—h—e— —d—a—t—a—s—e—t—-—l—e—v—e—l— —m—e—a—n—s— —a—c—r—o—s—s— —t—h—e— —1—5— —e—v—a—l—u—a—t—i—o—n— —f—o—l—d—s— —(—R—e—p—e—a—t—e—d— —S—t—r—a—t—i—f—i—e—d— —5—-—F—o—l—d— —C—V—)—.— —F—u—l—l— —d—a—t—a—s—e—t—-—b—y—-—d—a—t—a—s—e—t— —o—u—t—c—o—m—e—s— —a—r—e— —p—r—o—v—i—d—e—d— —i—n— —`—r—e—s—u—l—t—s—/—s—u—m—m—a—r—y—_—t—a—b—l—e—.—c—s—v—`—.—
+—
+—#—#—#— —5—.—1—.— —P—e—r—f—o—r—m—a—n—c—e— —a—c—r—o—s—s— —C—l—a—s—s—i—f—i—e—r—s—
+—
+—T—h—e— —n—o—n—-—p—a—r—a—m—e—t—r—i—c— —F—r—i—e—d—m—a—n— —t—e—s—t—,— —e—x—e—c—u—t—e—d— —a—c—r—o—s—s— —t—h—e— —s—i—x— —t—e—s—t—e—d— —s—t—r—a—t—e—g—i—e—s— —(—N—o—n—e—,— —R—O—S—,— —S—M—O—T—E—,— —B—o—r—d—e—r—l—i—n—e—-—S—M—O—T—E—,— —A—D—A—S—Y—N—,— —a—n—d— —A—C—-—S—M—O—T—E—)— —u—s—i—n—g— —e—a—c—h— —d—a—t—a—s—e—t— —a—s— —a— —b—l—o—c—k—,— —c—o—n—f—i—r—m—e—d— —s—t—a—t—i—s—t—i—c—a—l—l—y— —s—i—g—n—i—f—i—c—a—n—t— —d—i—f—f—e—r—e—n—c—e—s— —a—c—r—o—s—s— —m—e—t—h—o—d—s—.— —F—o—r— —i—n—s—t—a—n—c—e—,— —e—v—a—l—u—a—t—i—n—g— —t—h—e— —G—e—o—m—e—t—r—i—c— —M—e—a—n— —(—G—-—m—e—a—n—)— —m—e—t—r—i—c—,— —t—h—e— —F—r—i—e—d—m—a—n— —t—e—s—t— —r—e—t—u—r—n—e—d— —a— —t—e—s—t— —s—t—a—t—i—s—t—i—c— —o—f— —$—\—c—h—i—^—2— —=— —2—3—.—3—1—$— —(—$—p— —=— —0—.—0—0—0—2—9—$—)— —f—o—r— —L—o—g—i—s—t—i—c— —R—e—g—r—e—s—s—i—o—n—,— —$—\—c—h—i—^—2— —=— —2—7—.—2—0—$— —(—$—p— —<— —0—.—0—0—0—1—$—)— —f—o—r— —R—a—n—d—o—m— —F—o—r—e—s—t—,— —a—n—d— —$—\—c—h—i—^—2— —=— —2—4—.—0—6—$— —(—$—p— —=— —0—.—0—0—0—2—$—)— —f—o—r— —X—G—B—o—o—s—t—.— —
+—
+—A— —p—o—s—t—-—h—o—c— —N—e—m—e—n—y—i— —t—e—s—t— —(—v—i—s—u—a—l—i—z—e—d— —i—n— —t—h—e— —C—r—i—t—i—c—a—l— —D—i—f—f—e—r—e—n—c—e— —D—i—a—g—r—a—m—,— —F—i—g—u—r—e— —1—)— —g—r—o—u—p—s— —t—h—e— —r—e—s—a—m—p—l—e—r—s— —b—a—s—e—d— —o—n— —t—h—e—i—r— —r—a—n—k— —d—i—s—t—r—i—b—u—t—i—o—n—s—.— —W—e— —o—b—s—e—r—v—e—d— —t—h—a—t— —t—h—e— —c—h—o—i—c—e— —o—f— —o—v—e—r—s—a—m—p—l—i—n—g— —s—t—r—o—n—g—l—y— —i—m—p—a—c—t—s— —m—o—d—e—l—s— —w—i—t—h— —l—o—w—e—r— —c—a—p—a—c—i—t—y— —o—r— —u—n—r—e—g—u—l—a—r—i—z—e—d— —l—i—n—e—a—r— —b—o—u—n—d—s—,— —w—h—e—r—e—a—s— —p—o—w—e—r—f—u—l— —n—o—n—-—l—i—n—e—a—r— —e—n—s—e—m—b—l—e—s— —(—l—i—k—e— —X—G—B—o—o—s—t—)— —e—x—h—i—b—i—t— —d—i—f—f—e—r—e—n—t— —s—e—n—s—i—t—i—v—i—t—i—e—s—.—
+—
+—#—#—#— —5—.—2—.— —P—a—i—r—w—i—s—e— —E—v—a—l—u—a—t—i—o—n—:— —A—C—-—S—M—O—T—E— —v—s—.— —B—a—s—e—l—i—n—e—s—
+—
+—T—o— —e—v—a—l—u—a—t—e— —A—C—-—S—M—O—T—E— —d—i—r—e—c—t—l—y— —a—g—a—i—n—s—t— —i—n—d—i—v—i—d—u—a—l— —b—a—s—e—l—i—n—e—s—,— —w—e— —p—e—r—f—o—r—m—e—d— —a— —W—i—l—c—o—x—o—n— —s—i—g—n—e—d—-—r—a—n—k— —t—e—s—t— —o—n— —t—h—e— —p—a—i—r—e—d— —d—a—t—a—s—e—t—-—l—e—v—e—l— —m—e—a—n—s—.— —
+—
+—*—*—C—o—m—p—a—r—e—d— —t—o— —N—o— —R—e—s—a—m—p—l—i—n—g— —(—N—o—n—e—)—:—*—*—
+—A—C—-—S—M—O—T—E— —u—n—e—q—u—i—v—o—c—a—l—l—y— —i—m—p—r—o—v—e—s— —m—e—t—r—i—c—s— —t—h—a—t— —a—c—c—o—u—n—t— —f—o—r— —c—l—a—s—s— —i—m—b—a—l—a—n—c—e—.— —A—g—a—i—n—s—t— —t—h—e— —"—N—o—n—e—"— —b—a—s—e—l—i—n—e— —u—s—i—n—g— —R—a—n—d—o—m— —F—o—r—e—s—t—,— —A—C—-—S—M—O—T—E— —a—c—h—i—e—v—e—d— —1—0— —w—i—n—s— —a—n—d— —0— —l—o—s—s—e—s— —f—o—r— —b—o—t—h— —G—-—m—e—a—n— —a—n—d— —B—a—l—a—n—c—e—d— —A—c—c—u—r—a—c—y— —(—$—p— —=— —0—.—0—0—1—9—$—)—.— —S—i—m—i—l—a—r— —d—o—m—i—n—a—n—c—e— —w—a—s— —o—b—s—e—r—v—e—d— —f—o—r— —L—o—g—i—s—t—i—c— —R—e—g—r—e—s—s—i—o—n— —(—1—0— —w—i—n—s—,— —0— —l—o—s—s—e—s— —f—o—r— —b—o—t—h— —m—e—t—r—i—c—s—)—.— —
+—
+—*—*—C—o—m—p—a—r—e—d— —t—o— —B—a—s—i—c— —R—e—s—a—m—p—l—i—n—g— —(—R—O—S— —a—n—d— —S—M—O—T—E—)—:—*—*—
+—W—h—e—n— —c—o—m—p—a—r—e—d— —t—o— —R—a—n—d—o—m— —O—v—e—r—-—S—a—m—p—l—i—n—g— —(—R—O—S—)— —u—n—d—e—r— —L—o—g—i—s—t—i—c— —R—e—g—r—e—s—s—i—o—n—,— —A—C—-—S—M—O—T—E— —a—c—h—i—e—v—e—d— —a— —s—i—g—n—i—f—i—c—a—n—t— —v—i—c—t—o—r—y— —i—n— —F—1—-—s—c—o—r—e— —(—9— —w—i—n—s—,— —1— —l—o—s—s—,— —$—p— —=— —0—.—0—0—9—7—$—)— —a—n—d— —M—C—C— —(—9— —w—i—n—s—,— —1— —l—o—s—s—,— —$—p— —=— —0—.—0—1—9—5—$—)—.—
+—A—g—a—i—n—s—t— —s—t—a—n—d—a—r—d— —S—M—O—T—E— —u—s—i—n—g— —R—a—n—d—o—m— —F—o—r—e—s—t—,— —t—h—e— —r—e—s—u—l—t—s— —w—e—r—e— —h—i—g—h—l—y— —c—o—m—p—e—t—i—t—i—v—e— —b—u—t— —m—i—x—e—d—.— —F—o—r— —G—-—m—e—a—n—,— —A—C—-—S—M—O—T—E— —s—e—c—u—r—e—d— —6— —w—i—n—s— —a—n—d— —4— —l—o—s—s—e—s—;— —h—o—w—e—v—e—r—,— —f—o—r— —F—1—-—s—c—o—r—e—,— —S—M—O—T—E— —o—u—t—p—e—r—f—o—r—m—e—d— —A—C—-—S—M—O—T—E— —o—n— —7— —o—u—t— —o—f— —1—0— —d—a—t—a—s—e—t—s—.— —T—h—i—s— —s—u—g—g—e—s—t—s— —t—h—a—t— —w—h—i—l—e— —a—t—t—r—i—b—u—t—i—o—n—-—c—o—n—s—t—r—a—i—n—e—d— —i—n—t—e—r—p—o—l—a—t—i—o—n— —h—e—l—p—s— —p—r—e—s—e—r—v—e— —t—h—e— —u—n—d—e—r—l—y—i—n—g— —g—e—o—m—e—t—r—i—c— —d—i—s—t—r—i—b—u—t—i—o—n— —(—b—e—n—e—f—i—t—t—i—n—g— —G—-—m—e—a—n—)—,— —u—n—c—o—n—s—t—r—a—i—n—e—d— —S—M—O—T—E—'—s— —b—r—o—a—d—e—r— —f—e—a—t—u—r—e—-—s—p—a—c—e— —e—x—p—l—o—r—a—t—i—o—n— —c—a—n— —s—o—m—e—t—i—m—e—s— —y—i—e—l—d— —h—i—g—h—e—r— —p—r—e—c—i—s—i—o—n—/—r—e—c—a—l—l— —h—a—r—m—o—n—i—c— —m—e—a—n—s— —i—n— —c—o—m—p—l—e—x— —e—n—s—e—m—b—l—e—s—.—
+—
+—*—*—C—o—m—p—a—r—e—d— —t—o— —D—e—n—s—i—t—y—-—b—a—s—e—d— —R—e—s—a—m—p—l—i—n—g— —(—B—o—r—d—e—r—l—i—n—e—-—S—M—O—T—E— —a—n—d— —A—D—A—S—Y—N—)—:—*—*—
+—A—C—-—S—M—O—T—E— —d—e—m—o—n—s—t—r—a—t—e—d— —s—t—r—o—n—g— —a—d—v—a—n—t—a—g—e—s— —o—v—e—r— —B—o—r—d—e—r—l—i—n—e—-—S—M—O—T—E— —w—h—e—n— —e—v—a—l—u—a—t—e—d— —w—i—t—h— —R—a—n—d—o—m— —F—o—r—e—s—t—,— —w—i—n—n—i—n—g— —8— —o—u—t— —o—f— —1—0— —d—a—t—a—s—e—t—s— —i—n— —B—a—l—a—n—c—e—d— —A—c—c—u—r—a—c—y— —(—$—p— —=— —0—.—0—1—9—5—$—)— —a—n—d— —7— —o—u—t— —o—f— —1—0— —i—n— —G—-—m—e—a—n— —(—$—p— —=— —0—.—0—3—7—1—$—)—.— —I—n—t—e—r—e—s—t—i—n—g—l—y—,— —w—h—e—n— —c—o—m—p—a—r—e—d— —t—o— —A—D—A—S—Y—N— —u—s—i—n—g— —X—G—B—o—o—s—t—,— —A—C—-—S—M—O—T—E— —p—r—o—v—e—d— —v—a—s—t—l—y— —s—u—p—e—r—i—o—r— —i—n— —p—r—e—s—e—r—v—i—n—g— —t—h—e— —A—r—e—a— —U—n—d—e—r— —t—h—e— —P—r—e—c—i—s—i—o—n—-—R—e—c—a—l—l— —C—u—r—v—e— —(—A—U—C—-—P—R—)—,— —s—e—c—u—r—i—n—g— —9— —w—i—n—s— —a—n—d— —o—n—l—y— —1— —l—o—s—s— —(—$—p— —=— —0—.—0—0—3—9—$—)—.— —
+—
+—#—#— —6—.— —D—i—s—c—u—s—s—i—o—n— —a—n—d— —A—b—l—a—t—i—o—n— —S—t—u—d—y—
+—
+—#—#—#— —6—.—1—.— —A—b—l—a—t—i—o—n— —o—n— —H—y—p—e—r—p—a—r—a—m—e—t—e—r—s— —(—$—\—b—e—t—a—$—,— —$—\—a—l—p—h—a—$—,— —$—k—$—)—
+—T—o— —i—s—o—l—a—t—e— —t—h—e— —c—o—n—t—r—i—b—u—t—i—o—n— —o—f— —o—u—r— —a—t—t—r—i—b—u—t—i—o—n—-—g—u—i—d—e—d— —c—o—n—s—t—r—a—i—n—t—s—,— —w—e— —c—o—n—d—u—c—t—e—d— —a—n— —a—b—l—a—t—i—o—n— —s—t—u—d—y— —o—v—e—r— —o—u—r— —n—o—v—e—l— —h—y—p—e—r—p—a—r—a—m—e—t—e—r—s— —u—s—i—n—g— —X—G—B—o—o—s—t— —a—c—r—o—s—s— —5— —r—e—p—r—e—s—e—n—t—a—t—i—v—e— —d—a—t—a—s—e—t—s— —(—i—n—c—l—u—d—i—n—g— —t—h—e— —h—e—a—v—i—l—y— —i—m—b—a—l—a—n—c—e—d— —`—a—b—a—l—o—n—e—_—1—9—`— —a—n—d— —t—h—e— —m—a—s—s—i—v—e— —`—c—r—e—d—i—t—c—a—r—d—`— —b—e—n—c—h—m—a—r—k—)—.—
+—
+—T—h—e— —a—b—l—a—t—i—o—n— —s—w—e—e—p—s— —(—s—t—o—r—e—d— —i—n— —`—a—b—l—a—t—i—o—n—_—r—e—s—u—l—t—s—.—c—s—v—`—)— —c—o—n—f—i—r—m— —t—h—e— —e—f—f—i—c—a—c—y— —o—f— —t—h—e— —i—n—t—e—r—p—o—l—a—t—i—o—n— —c—o—n—s—t—r—a—i—n—t— —(—$—\—b—e—t—a—$—)—.— —S—e—t—t—i—n—g— —$—\—b—e—t—a— —=— —0—$— —r—e—d—u—c—e—s— —A—C—-—S—M—O—T—E— —t—o— —u—s—i—n—g— —o—n—l—y— —a—t—t—r—i—b—u—t—i—o—n—-—w—e—i—g—h—t—e—d— —n—e—i—g—h—b—o—r— —s—e—l—e—c—t—i—o—n—,— —w—h—i—l—e— —i—n—c—r—e—a—s—i—n—g— —$—\—b—e—t—a— —\—t—o— —1—$— —t—i—g—h—t—e—n—s— —t—h—e— —i—n—t—e—r—p—o—l—a—t—i—o—n— —s—t—e—p— —a—g—g—r—e—s—s—i—v—e—l—y— —a—r—o—u—n—d— —c—r—i—t—i—c—a—l— —S—H—A—P— —f—e—a—t—u—r—e—s—.— —A—s— —v—i—s—u—a—l—i—z—e—d— —i—n— —t—h—e— —$—\—b—e—t—a—$—-—s—w—e—e—p— —p—l—o—t—s—,— —i—n—t—e—r—m—e—d—i—a—t—e— —v—a—l—u—e—s— —(—e—.—g—.—,— —$—\—b—e—t—a— —=— —0—.—5—$— —o—r— —$—0—.—7—$—)— —t—y—p—i—c—a—l—l—y— —s—t—r—i—k—e— —t—h—e— —o—p—t—i—m—a—l— —b—a—l—a—n—c—e—,— —p—r—e—v—e—n—t—i—n—g— —t—h—e— —c—o—l—l—a—p—s—e— —o—f— —s—y—n—t—h—e—t—i—c— —v—a—r—i—a—n—c—e— —w—h—i—l—e— —a—v—o—i—d—i—n—g— —t—h—e— —g—e—n—e—r—a—t—i—o—n— —o—f— —n—o—i—s—y— —s—a—m—p—l—e—s— —i—n— —c—r—i—t—i—c—a—l— —d—i—m—e—n—s—i—o—n—s—.—
+—
+—#—#—#— —6—.—2—.— —I—n—t—e—r—p—r—e—t—a—t—i—o—n— —a—n—d— —L—i—m—i—t—a—t—i—o—n—s—
+—T—h—e— —e—x—p—e—r—i—m—e—n—t—a—l— —r—e—s—u—l—t—s— —e—n—f—o—r—c—e— —a— —k—n—o—w—n— —r—e—a—l—i—t—y— —i—n— —i—m—b—a—l—a—n—c—e—d— —l—e—a—r—n—i—n—g— —l—i—t—e—r—a—t—u—r—e—:— —n—o— —s—i—n—g—l—e— —o—v—e—r—s—a—m—p—l—i—n—g— —t—e—c—h—n—i—q—u—e— —u—n—i—v—e—r—s—a—l—l—y— —d—o—m—i—n—a—t—e—s— —e—v—e—r—y— —m—e—t—r—i—c— —a—n—d— —e—v—e—r—y— —c—l—a—s—s—i—f—i—e—r—.— —
+—
+—A—C—-—S—M—O—T—E— —s—u—c—c—e—e—d—s— —w—h—e—r—e— —s—t—a—n—d—a—r—d— —S—M—O—T—E— —c—r—e—a—t—e—s— —"—b—r—i—d—g—e—"— —s—a—m—p—l—e—s— —t—h—a—t— —c—r—o—s—s— —t—h—e— —t—r—u—e— —d—e—c—i—s—i—o—n— —b—o—u—n—d—a—r—y— —i—n— —h—i—g—h—l—y— —c—r—i—t—i—c—a—l— —f—e—a—t—u—r—e— —d—i—m—e—n—s—i—o—n—s—.— —B—y— —f—o—r—c—i—n—g— —i—n—t—e—r—p—o—l—a—t—i—o—n— —t—o— —s—t—a—y— —c—l—o—s—e— —t—o— —t—h—e— —p—a—r—e—n—t— —i—n—s—t—a—n—c—e— —o—n— —h—i—g—h—-—S—H—A—P— —f—e—a—t—u—r—e—s—,— —A—C—-—S—M—O—T—E— —p—r—o—t—e—c—t—s— —t—h—e— —i—n—t—e—g—r—i—t—y— —o—f— —t—h—o—s—e— —d—i—m—e—n—s—i—o—n—s—.— —T—h—i—s— —w—a—s— —d—i—s—t—i—n—c—t—l—y— —v—i—s—i—b—l—e— —i—n— —o—u—r— —P—C—A— —p—r—o—j—e—c—t—i—o—n—s— —o—n— —t—h—e— —`—w—i—n—e—_—q—u—a—l—i—t—y—`— —d—a—t—a—s—e—t—,— —w—h—e—r—e— —A—C—-—S—M—O—T—E—'—s— —s—y—n—t—h—e—t—i—c— —i—n—s—t—a—n—c—e—s— —a—d—h—e—r—e—d— —m—o—r—e— —c—l—o—s—e—l—y— —t—o— —t—h—e— —d—e—n—s—e— —c—l—u—s—t—e—r—s— —o—f— —t—r—u—e— —m—i—n—o—r—i—t—y— —s—a—m—p—l—e—s— —c—o—m—p—a—r—e—d— —t—o— —t—h—e— —d—i—f—f—u—s—e— —s—p—r—e—a—d— —o—f— —s—t—a—n—d—a—r—d— —S—M—O—T—E—.—
+—
+—H—o—w—e—v—e—r—,— —t—h—i—s— —s—t—r—u—c—t—u—r—a—l— —f—i—d—e—l—i—t—y— —c—o—m—e—s— —w—i—t—h— —t—w—o— —t—r—a—d—e—-—o—f—f—s—.— —
+—F—i—r—s—t—,— —t—h—e—r—e— —i—s— —a—n— —o—b—s—e—r—v—a—b—l—e— —c—o—m—p—u—t—a—t—i—o—n—a—l— —o—v—e—r—h—e—a—d—.— —T—h—e— —r—u—n—t—i—m—e— —c—o—m—p—a—r—i—s—o—n— —c—h—a—r—t— —d—e—m—o—n—s—t—r—a—t—e—s— —t—h—a—t— —A—C—-—S—M—O—T—E— —i—s— —s—l—o—w—e—r— —t—h—a—n— —S—M—O—T—E—,— —d—r—i—v—e—n— —i—n—h—e—r—e—n—t—l—y— —b—y— —t—h—e— —n—e—e—d— —t—o— —f—i—t— —a— —s—u—r—r—o—g—a—t—e— —m—o—d—e—l— —a—n—d— —c—o—m—p—u—t—e— —T—r—e—e—S—H—A—P— —v—a—l—u—e—s— —p—r—i—o—r— —t—o— —n—e—i—g—h—b—o—r— —s—e—l—e—c—t—i—o—n—.— —
+—S—e—c—o—n—d—,— —i—n— —s—p—e—c—i—f—i—c— —c—l—a—s—s—i—f—i—e—r— —c—o—n—f—i—g—u—r—a—t—i—o—n—s— —(—n—o—t—a—b—l—y— —R—a—n—d—o—m— —F—o—r—e—s—t— —e—v—a—l—u—a—t—e—d— —o—n— —F—1—-—s—c—o—r—e—)—,— —r—e—s—t—r—i—c—t—i—n—g— —v—a—r—i—a—n—c—e— —i—n— —c—r—i—t—i—c—a—l— —d—i—m—e—n—s—i—o—n—s— —s—o—m—e—t—i—m—e—s— —l—i—m—i—t—s— —t—h—e— —e—n—s—e—m—b—l—e—'—s— —a—b—i—l—i—t—y— —t—o— —d—i—s—c—o—v—e—r— —b—r—o—a—d—e—r— —d—e—c—i—s—i—o—n— —r—u—l—e—s—,— —l—e—a—d—i—n—g— —t—o— —m—i—n—o—r— —l—o—s—s—e—s— —a—g—a—i—n—s—t— —u—n—c—o—n—s—t—r—a—i—n—e—d— —S—M—O—T—E—.— —
+—
+—D—e—s—p—i—t—e— —t—h—e—s—e— —l—i—m—i—t—a—t—i—o—n—s—,— —A—C—-—S—M—O—T—E— —r—e—p—r—e—s—e—n—t—s— —a— —m—a—t—h—e—m—a—t—i—c—a—l—l—y— —p—r—i—n—c—i—p—l—e—d— —a—p—p—r—o—a—c—h— —t—o— —i—n—j—e—c—t—i—n—g— —E—x—p—l—a—i—n—a—b—l—e— —A—I— —(—X—A—I—)— —d—i—r—e—c—t—l—y— —i—n—t—o— —t—h—e— —g—e—n—e—r—a—t—i—v—e— —p—i—p—e—l—i—n—e—,— —p—r—o—v—i—n—g— —t—h—a—t— —f—e—a—t—u—r—e— —a—t—t—r—i—b—u—t—i—o—n—s— —c—a—n— —a—c—t—i—v—e—l—y— —i—m—p—r—o—v—e— —d—a—t—a— —q—u—a—l—i—t—y— —r—a—t—h—e—r— —t—h—a—n— —m—e—r—e—l—y— —e—x—p—l—a—i—n—i—n—g— —i—t— —p—o—s—t—-—h—o—c—.—

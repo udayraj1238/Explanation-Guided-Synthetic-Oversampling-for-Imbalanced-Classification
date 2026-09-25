@@ -1,0 +1,49 @@
+=== TUNED AC-SMOTE vs UNTUNED AC-SMOTE ===
+
+Classifier: RF
+Metric: gmean | Tuned Mean: 0.7422 | Untuned Mean: 0.7395 | p-val (greater): 0.2783
+Metric: f1    | Tuned Mean: 0.6102 | Untuned Mean: 0.6078 | p-val (greater): 0.2158
+Metric: mcc   | Tuned Mean: 0.5871 | Untuned Mean: 0.5843 | p-val (greater): 0.2158
+
+Classifier: XGB
+Metric: gmean | Tuned Mean: 0.7499 | Untuned Mean: 0.7464 | p-val (greater): 0.0801
+Metric: f1    | Tuned Mean: 0.6197 | Untuned Mean: 0.6221 | p-val (greater): 0.8838
+Metric: mcc   | Tuned Mean: 0.5939 | Untuned Mean: 0.5961 | p-val (greater): 0.8125
+
+=== TUNED AC-SMOTE vs SMOTETOMEK ===
+
+Classifier: RF
+Metric: gmean | Tuned Mean: 0.7422 | SMOTETomek Mean: 0.7458 | p-val (greater): 0.9199
+Metric: f1    | Tuned Mean: 0.6102 | SMOTETomek Mean: 0.5934 | p-val (greater): 0.6152
+Metric: mcc   | Tuned Mean: 0.5871 | SMOTETomek Mean: 0.5709 | p-val (greater): 0.5000
+
+Classifier: XGB
+Metric: gmean | Tuned Mean: 0.7499 | SMOTETomek Mean: 0.7493 | p-val (greater): 0.5000
+Metric: f1    | Tuned Mean: 0.6197 | SMOTETomek Mean: 0.5933 | p-val (greater): 0.3848
+Metric: mcc   | Tuned Mean: 0.5939 | SMOTETomek Mean: 0.5707 | p-val (greater): 0.3125
+
+=== HYPERPARAMETER CONSISTENCY ===
+Most frequently selected (alpha, beta) across the 15 folds:
+
+                         alpha_star  beta_star
+dataset      classifier                       
+abalone_19   rf                 1.0        0.3
+             xgb                1.0        0.3
+car_eval_34  rf                 1.0        1.0
+             xgb                1.0        0.3
+creditcard   rf                 1.0        0.3
+             xgb                1.0        0.3
+ecoli        rf                 1.0        0.3
+             xgb                1.0        0.3
+mammography  rf                 1.0        0.3
+             xgb                2.0        0.7
+oil          rf                 1.0        0.3
+             xgb                1.0        0.3
+satimage     rf                 4.0        0.7
+             xgb                4.0        1.0
+spectrometer rf                 1.0        0.3
+             xgb                1.0        0.3
+telco_churn  rf                 4.0        0.7
+             xgb                4.0        0.3
+wine_quality rf                 4.0        1.0
+             xgb                2.0        1.0

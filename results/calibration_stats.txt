@@ -1,0 +1,92 @@
+Calibration Metrics (Brier Score and Expected Calibration Error - ECE)
+
+Note: For calibration metrics, LOWER is better.
+
+Alternative Hypothesis: AC-SMOTE's error is strictly less than the baseline's error.
+
+
+========================================
+CLASSIFIER: RF
+========================================
+
+--- AC-SMOTE vs NONE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0490 | none Mean: 0.0444 | p-value (less): 0.9375
+Metric: ece          | AC-SMOTE Mean: 0.0377 | none Mean: 0.0272 | p-value (less): 0.9688
+
+--- AC-SMOTE vs SMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0490 | smote Mean: 0.0493 | p-value (less): 0.7812
+Metric: ece          | AC-SMOTE Mean: 0.0377 | smote Mean: 0.0401 | p-value (less): 0.3125
+
+--- AC-SMOTE vs BSMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0490 | bsmote Mean: 0.0477 | p-value (less): 0.8438
+Metric: ece          | AC-SMOTE Mean: 0.0377 | bsmote Mean: 0.0319 | p-value (less): 0.9688
+
+--- AC-SMOTE vs ADASYN ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0490 | adasyn Mean: 0.0499 | p-value (less): 0.3125
+Metric: ece          | AC-SMOTE Mean: 0.0377 | adasyn Mean: 0.0402 | p-value (less): 0.4062
+
+--- AC-SMOTE vs SVMSMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0490 | svmsmote Mean: 0.0522 | p-value (less): 0.3125
+Metric: ece          | AC-SMOTE Mean: 0.0377 | svmsmote Mean: 0.0535 | p-value (less): 0.4062
+
+--- AC-SMOTE vs SMOTETOMEK ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0490 | smotetomek Mean: 0.0541 | p-value (less): 0.2188
+Metric: ece          | AC-SMOTE Mean: 0.0377 | smotetomek Mean: 0.0600 | p-value (less): 0.0938
+
+
+========================================
+CLASSIFIER: XGB
+========================================
+
+--- AC-SMOTE vs NONE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0476 | none Mean: 0.0449 | p-value (less): 0.9375
+Metric: ece          | AC-SMOTE Mean: 0.0342 | none Mean: 0.0314 | p-value (less): 0.9062
+
+--- AC-SMOTE vs SMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0476 | smote Mean: 0.0471 | p-value (less): 0.4062
+Metric: ece          | AC-SMOTE Mean: 0.0342 | smote Mean: 0.0343 | p-value (less): 0.5938
+
+--- AC-SMOTE vs BSMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0476 | bsmote Mean: 0.0482 | p-value (less): 0.3125
+Metric: ece          | AC-SMOTE Mean: 0.0342 | bsmote Mean: 0.0354 | p-value (less): 0.3125
+
+--- AC-SMOTE vs ADASYN ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0476 | adasyn Mean: 0.0481 | p-value (less): 0.1562
+Metric: ece          | AC-SMOTE Mean: 0.0342 | adasyn Mean: 0.0358 | p-value (less): 0.0625
+
+--- AC-SMOTE vs SVMSMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0476 | svmsmote Mean: 0.0530 | p-value (less): 0.0312
+Metric: ece          | AC-SMOTE Mean: 0.0342 | svmsmote Mean: 0.0462 | p-value (less): 0.0312
+
+--- AC-SMOTE vs SMOTETOMEK ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0476 | smotetomek Mean: 0.0539 | p-value (less): 0.1562
+Metric: ece          | AC-SMOTE Mean: 0.0342 | smotetomek Mean: 0.0494 | p-value (less): 0.1562
+
+
+========================================
+CLASSIFIER: LR
+========================================
+
+--- AC-SMOTE vs NONE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0851 | none Mean: 0.0423 | p-value (less): 1.0000
+Metric: ece          | AC-SMOTE Mean: 0.1141 | none Mean: 0.0229 | p-value (less): 1.0000
+
+--- AC-SMOTE vs SMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0851 | smote Mean: 0.0831 | p-value (less): 1.0000
+Metric: ece          | AC-SMOTE Mean: 0.1141 | smote Mean: 0.1084 | p-value (less): 1.0000
+
+--- AC-SMOTE vs BSMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0851 | bsmote Mean: 0.0770 | p-value (less): 0.5938
+Metric: ece          | AC-SMOTE Mean: 0.1141 | bsmote Mean: 0.0946 | p-value (less): 0.7812
+
+--- AC-SMOTE vs ADASYN ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0851 | adasyn Mean: 0.0876 | p-value (less): 0.3125
+Metric: ece          | AC-SMOTE Mean: 0.1141 | adasyn Mean: 0.1179 | p-value (less): 0.4062
+
+--- AC-SMOTE vs SVMSMOTE ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0851 | svmsmote Mean: 0.0728 | p-value (less): 0.8438
+Metric: ece          | AC-SMOTE Mean: 0.1141 | svmsmote Mean: 0.0938 | p-value (less): 0.7812
+
+--- AC-SMOTE vs SMOTETOMEK ---
+Metric: brier_score  | AC-SMOTE Mean: 0.0851 | smotetomek Mean: 0.0847 | p-value (less): 0.6875
+Metric: ece          | AC-SMOTE Mean: 0.1141 | smotetomek Mean: 0.1110 | p-value (less): 0.9062

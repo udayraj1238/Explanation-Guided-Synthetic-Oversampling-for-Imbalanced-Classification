@@ -135,9 +135,62 @@ def run_statistical_tests():
                                 "losses": int(np.sum(diffs < 0))
                             }
 
+    # 4. Holm-Bonferroni Correction
+    from statsmodels.stats.multitest import multipletests
+    for clf in classifiers:
+        for metric in [m for m in metrics if m != 'fit_time_seconds']:
+            # Collect p-values for this family (7 baselines)
+            p_vals = []
+            baselines_in_family = []
+            for baseline in resamplers:
+                if baseline == 'acsmote': continue
+                if baseline in stats_results["wilcoxon_acsmote_vs_baseline"][clf] and metric in stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline]:
+                    p = stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["p"]
+                    if p is not None:
+                        p_vals.append(p)
+                        baselines_in_family.append(baseline)
+            
+            if len(p_vals) > 0:
+                reject, pvals_corrected, _, _ = multipletests(p_vals, method='holm')
+                for i, baseline in enumerate(baselines_in_family):
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["p_corr"] = float(pvals_corrected[i])
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["significant_after_correction"] = bool(reject[i])
+
+    # 5. Attribution Ablation Significance (Pooled and abalone_19-specific)
+    if os.path.exists('results/attribution_ablation_results.csv'):
+        df_abl = pd.read_csv('results/attribution_ablation_results.csv')
+        abl_mean = df_abl.groupby(['dataset', 'attribution_method'])['gmean'].mean().reset_index()
+        
+        shap_vals = abl_mean[abl_mean['attribution_method'] == 'shap'].sort_values('dataset')['gmean'].values
+        unif_vals = abl_mean[abl_mean['attribution_method'] == 'uniform'].sort_values('dataset')['gmean'].values
+        
+        if len(shap_vals) == len(unif_vals) and len(shap_vals) > 0:
+            stat_pooled, p_pooled = wilcoxon(shap_vals, unif_vals)
+        else:
+            stat_pooled, p_pooled = None, None
+            
+        df_aba = df_abl[df_abl['dataset'] == 'abalone_19']
+        shap_folds = df_aba[df_aba['attribution_method'] == 'shap'].sort_values('fold_id')['gmean'].values
+        unif_folds = df_aba[df_aba['attribution_method'] == 'uniform'].sort_values('fold_id')['gmean'].values
+        
+        if len(shap_folds) == len(unif_folds) and len(shap_folds) > 0:
+            stat_aba, p_aba = wilcoxon(shap_folds, unif_folds)
+        else:
+            stat_aba, p_aba = None, None
+            
+        stats_results["attribution_ablation"] = {
+            "pooled_n5": {
+                "p": float(p_pooled) if p_pooled is not None else None,
+                "note": "n=5 limits statistical power, interpret with caution"
+            },
+            "abalone_19_folds_n15": {
+                "p": float(p_aba) if p_aba is not None else None
+            }
+        }
+
     with open('results/statistical_tests.json', 'w') as f:
         json.dump(stats_results, f, indent=2)
-    print("Saved results/statistical_tests.json with effect sizes and robust scaling.")
+    print("Saved results/statistical_tests.json with Holm-Bonferroni correction and ablation significance tests.")
 
 if __name__ == '__main__':
     run_statistical_tests()

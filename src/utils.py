@@ -26,3 +26,14 @@ def set_all_seeds(seed: int) -> None:
     """Seeds numpy, python's random module, and anything else with its own RNG."""
     random.seed(seed)
     np.random.seed(seed)
+
+def get_shap_importance(model, X):
+    """Returns mean |SHAP value| per feature for the positive/minority class."""
+    import shap
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X)
+    if isinstance(shap_values, list):
+        shap_values = shap_values[1]
+    elif len(shap_values.shape) == 3:
+        shap_values = shap_values[:, :, 1]
+    return np.mean(np.abs(shap_values), axis=0)

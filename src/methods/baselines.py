@@ -10,14 +10,26 @@ class SafeSVMSMOTE:
         self.svmsmote = SVMSMOTE(random_state=random_state)
         
     def fit_resample(self, X, y):
-        # Subsample majority class if it's exceptionally large (like creditcard dataset)
-        # SVMSMOTE trains an SVM, which is O(N^3). Without this, creditcard will hang.
         n_maj = (y == 0).sum()
         if n_maj > 15000:
             from imblearn.under_sampling import RandomUnderSampler
             rus = RandomUnderSampler(sampling_strategy={0: 15000}, random_state=self.random_state)
             X, y = rus.fit_resample(X, y)
         return self.svmsmote.fit_resample(X, y)
+
+class SafeSMOTETomek:
+    def __init__(self, random_state):
+        self.random_state = random_state
+        self.smotetomek = SMOTETomek(random_state=random_state)
+        
+    def fit_resample(self, X, y):
+        # TomekLinks is O(N^2), creditcard will hang for days.
+        n_maj = (y == 0).sum()
+        if n_maj > 15000:
+            from imblearn.under_sampling import RandomUnderSampler
+            rus = RandomUnderSampler(sampling_strategy={0: 15000}, random_state=self.random_state)
+            X, y = rus.fit_resample(X, y)
+        return self.smotetomek.fit_resample(X, y)
 
 def get_resampler(name: str, random_state: int):
     """
@@ -38,7 +50,7 @@ def get_resampler(name: str, random_state: int):
     elif name == 'svmsmote':
         return SafeSVMSMOTE(random_state=random_state)
     elif name == 'smotetomek':
-        return SMOTETomek(random_state=random_state)
+        return SafeSMOTETomek(random_state=random_state)
     elif name == 'acsmote':
         from src.methods.ac_smote import ACSMOTE
         return ACSMOTE(random_state=random_state)

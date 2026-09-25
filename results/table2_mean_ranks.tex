@@ -1,0 +1,37 @@
+\begin{table*}[htbp]
+\caption{Mean Ranks of Resampling Methods Across All 10 Datasets (Lower is Better)}
+\label{tab:mean_ranks}
+\centering
+\begin{tabular}{llccccc}
+\toprule
+Classifier & Method & F1-Score & AUC-PR & MCC & G-Mean & Bal. Acc \\
+\midrule
+Logistic Regression & None & 5.00 & 3.60 & 4.70 & 7.60 & 7.60 \\
+ & ROS & 5.70 & 5.50 & 5.60 & 3.90 & 3.70 \\
+ & SMOTE & 3.70 & 3.60 & 3.80 & 3.80 & 3.70 \\
+ & B-SMOTE & 5.20 & 6.50 & 5.40 & 5.50 & 5.60 \\
+ & ADASYN & 6.20 & 5.80 & 6.10 & 4.70 & 5.00 \\
+ & SVMSMOTE & \textbf{2.40} & 4.20 & \textbf{2.70} & 4.20 & 4.00 \\
+ & SMOTETomek & 3.40 & \textbf{2.90} & 3.50 & 3.30 & 3.40 \\
+ & AC-SMOTE & 4.40 & 3.90 & 4.20 & \textbf{3.00} & \textbf{3.00} \\
+\midrule
+Random Forest & None & 6.40 & 3.70 & 5.70 & 7.80 & 7.70 \\
+ & ROS & 4.50 & \textbf{3.20} & 4.00 & 5.70 & 5.70 \\
+ & SMOTE & \textbf{3.50} & 4.00 & \textbf{3.60} & 3.30 & 3.30 \\
+ & B-SMOTE & 4.30 & 6.20 & 4.50 & 5.40 & 5.60 \\
+ & ADASYN & 5.20 & 5.50 & 5.70 & 3.90 & 3.90 \\
+ & SVMSMOTE & 3.70 & 4.10 & 3.80 & 3.30 & 3.20 \\
+ & SMOTETomek & 3.80 & 4.80 & 4.00 & \textbf{2.90} & \textbf{2.70} \\
+ & AC-SMOTE & 4.60 & 4.50 & 4.70 & 3.70 & 3.90 \\
+\midrule
+XGBoost & None & 6.20 & 4.30 & 5.40 & 8.00 & 7.60 \\
+ & ROS & 4.20 & 4.80 & 4.10 & 5.10 & 5.10 \\
+ & SMOTE & \textbf{3.70} & 4.30 & \textbf{4.00} & 3.60 & 3.80 \\
+ & B-SMOTE & 3.80 & 5.50 & 4.10 & 4.20 & 4.20 \\
+ & ADASYN & 4.70 & 5.70 & 5.00 & 4.00 & 4.00 \\
+ & SVMSMOTE & 4.20 & \textbf{3.20} & 4.20 & 3.70 & 3.70 \\
+ & SMOTETomek & 4.60 & 4.40 & 4.90 & \textbf{3.30} & \textbf{3.20} \\
+ & AC-SMOTE & 4.60 & 3.80 & 4.30 & 4.10 & 4.40 \\
+\bottomrule
+\end{tabular}
+\end{table*}

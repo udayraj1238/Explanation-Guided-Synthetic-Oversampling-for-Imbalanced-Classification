@@ -135,7 +135,7 @@ def run_statistical_tests():
                                 "losses": int(np.sum(diffs < 0))
                             }
 
-    # 4. Holm-Bonferroni Correction
+    # 4. Multiple Comparisons Correction (Main Grid)
     from statsmodels.stats.multitest import multipletests
     for clf in classifiers:
         for metric in [m for m in metrics if m != 'fit_time_seconds']:
@@ -151,10 +151,36 @@ def run_statistical_tests():
                         baselines_in_family.append(baseline)
             
             if len(p_vals) > 0:
-                reject, pvals_corrected, _, _ = multipletests(p_vals, method='holm')
+                reject_holm, p_holm, _, _ = multipletests(p_vals, method='holm')
+                reject_bh, p_bh, _, _ = multipletests(p_vals, method='fdr_bh')
                 for i, baseline in enumerate(baselines_in_family):
-                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["p_corr"] = float(pvals_corrected[i])
-                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["significant_after_correction"] = bool(reject[i])
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["p_corr_holm"] = float(p_holm[i])
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["significant_holm"] = bool(reject_holm[i])
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["p_corr_fdr_bh"] = float(p_bh[i])
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["significant_fdr_bh"] = bool(reject_bh[i])
+                    # Keep legacy 'p_corr' for compatibility if needed
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["p_corr"] = float(p_holm[i])
+                    stats_results["wilcoxon_acsmote_vs_baseline"][clf][baseline][metric]["significant_after_correction"] = bool(reject_holm[i])
+
+    # 4.5 Multiple Comparisons Correction (Cost-Sensitive)
+    if "cost_sensitive_wilcoxon" in stats_results:
+        for clf in classifiers:
+            p_vals = []
+            metrics_in_family = []
+            if clf in stats_results["cost_sensitive_wilcoxon"]:
+                for metric in [m for m in metrics if m != 'fit_time_seconds']:
+                    if metric in stats_results["cost_sensitive_wilcoxon"][clf]:
+                        p = stats_results["cost_sensitive_wilcoxon"][clf][metric].get("p")
+                        if p is not None:
+                            p_vals.append(p)
+                            metrics_in_family.append(metric)
+                
+                if len(p_vals) > 0:
+                    _, p_holm, _, _ = multipletests(p_vals, method='holm')
+                    _, p_bh, _, _ = multipletests(p_vals, method='fdr_bh')
+                    for i, metric in enumerate(metrics_in_family):
+                        stats_results["cost_sensitive_wilcoxon"][clf][metric]["p_corr_holm"] = float(p_holm[i])
+                        stats_results["cost_sensitive_wilcoxon"][clf][metric]["p_corr_fdr_bh"] = float(p_bh[i])
 
     # 5. Attribution Ablation Significance (Pooled and abalone_19-specific)
     if os.path.exists('results/attribution_ablation_results.csv'):

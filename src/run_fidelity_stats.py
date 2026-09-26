@@ -17,6 +17,8 @@ def run_fidelity_stats():
     output_lines.append("Null Hypothesis: AC-SMOTE's Spearman rho is <= the baseline's rho")
     output_lines.append("Alternative Hypothesis: AC-SMOTE's Spearman rho is > the baseline's rho (better fidelity)\n")
     
+    from statsmodels.stats.multitest import multipletests
+    
     for clf in classifiers:
         output_lines.append(f"\n{'='*40}")
         output_lines.append(f"CLASSIFIER: {clf.upper()}")
@@ -24,9 +26,11 @@ def run_fidelity_stats():
         
         ac_data = df_mean[(df_mean['classifier'] == clf) & (df_mean['resampler'] == 'acsmote')].sort_values('dataset')
         
-        # Add 'none' as a reference point for max fidelity
         none_data = df_mean[(df_mean['classifier'] == clf) & (df_mean['resampler'] == 'none')]
         output_lines.append(f"Reference upper-bound (none): mean rho = {none_data['spearman_rho'].mean():.4f}\n")
+        
+        p_vals = []
+        comparisons = []
         
         for base in baselines:
             base_data = df_mean[(df_mean['classifier'] == clf) & (df_mean['resampler'] == base)].sort_values('dataset')
@@ -37,7 +41,6 @@ def run_fidelity_stats():
                 losses = sum(diffs < 0)
                 ties = sum(diffs == 0)
                 
-                # Check for zero variance
                 if all(d == 0 for d in diffs):
                     p = 1.0
                 else:
@@ -46,11 +49,27 @@ def run_fidelity_stats():
                 ac_mean = ac_data['spearman_rho'].mean()
                 base_mean = base_data['spearman_rho'].mean()
                 
+                comparisons.append({
+                    'base': base,
+                    'ac_mean': ac_mean,
+                    'base_mean': base_mean,
+                    'wins': wins,
+                    'losses': losses,
+                    'ties': ties,
+                    'p': p
+                })
+                p_vals.append(p)
+                
+        if len(p_vals) > 0:
+            _, p_holm, _, _ = multipletests(p_vals, method='holm')
+            _, p_bh, _, _ = multipletests(p_vals, method='fdr_bh')
+            
+            for i, comp in enumerate(comparisons):
                 result_str = (
-                    f"AC-SMOTE vs {base.ljust(12)} | "
-                    f"Mean Rho: {ac_mean:.4f} vs {base_mean:.4f} | "
-                    f"Wins: {wins:2d}, Losses: {losses:2d}, Ties: {ties:2d} | "
-                    f"p-value (greater): {p:.4f}"
+                    f"AC-SMOTE vs {comp['base'].ljust(12)} | "
+                    f"Mean Rho: {comp['ac_mean']:.4f} vs {comp['base_mean']:.4f} | "
+                    f"W:{comp['wins']:2d} L:{comp['losses']:2d} T:{comp['ties']:2d} | "
+                    f"p_raw: {comp['p']:.4f} | p_holm: {p_holm[i]:.4f} | p_fdr: {p_bh[i]:.4f}"
                 )
                 output_lines.append(result_str)
                 

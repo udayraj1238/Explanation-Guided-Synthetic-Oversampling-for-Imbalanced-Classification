@@ -63,18 +63,8 @@ def run_calibration():
         if write_header:
             writer.writeheader()
             
-        print("Starting Calibration experiments...")
-        
         for ds_name in datasets:
             X_full, y_full = load_dataset(ds_name)
-            
-            # SPEED CAP: Subsample massive datasets to 15k to prevent 10-hour grid runs
-            if len(X_full) > 15000:
-                from sklearn.model_selection import train_test_split
-                _, X_full, _, y_full = train_test_split(
-                    X_full, y_full, test_size=15000, stratify=y_full, random_state=seed
-                )
-                
             set_all_seeds(seed)
             cv_splitter = RepeatedStratifiedKFold(n_splits=5, n_repeats=3, random_state=seed)
             

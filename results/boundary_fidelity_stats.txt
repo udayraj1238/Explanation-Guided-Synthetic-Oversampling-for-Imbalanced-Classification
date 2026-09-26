@@ -14,8 +14,8 @@ AC-SMOTE vs ros          | Mean Rho: 0.7248 vs 0.8067 | Wins:  4, Losses:  6, Ti
 AC-SMOTE vs smote        | Mean Rho: 0.7248 vs 0.7289 | Wins:  3, Losses:  7, Ties:  0 | p-value (greater): 0.8838
 AC-SMOTE vs bsmote       | Mean Rho: 0.7248 vs 0.7013 | Wins:  6, Losses:  4, Ties:  0 | p-value (greater): 0.3125
 AC-SMOTE vs adasyn       | Mean Rho: 0.7248 vs 0.6258 | Wins:  8, Losses:  2, Ties:  0 | p-value (greater): 0.0098
-AC-SMOTE vs svmsmote     | Mean Rho: 0.7248 vs 0.7765 | Wins:  3, Losses:  7, Ties:  0 | p-value (greater): 0.9756
-AC-SMOTE vs smotetomek   | Mean Rho: 0.7248 vs 0.7305 | Wins:  4, Losses:  6, Ties:  0 | p-value (greater): 0.7842
+AC-SMOTE vs svmsmote     | Mean Rho: 0.7248 vs 0.7766 | Wins:  2, Losses:  8, Ties:  0 | p-value (greater): 0.9902
+AC-SMOTE vs smotetomek   | Mean Rho: 0.7248 vs 0.7312 | Wins:  4, Losses:  6, Ties:  0 | p-value (greater): 0.8838
 
 ========================================
 CLASSIFIER: XGB
@@ -27,5 +27,5 @@ AC-SMOTE vs ros          | Mean Rho: 0.6316 vs 0.7782 | Wins:  1, Losses:  9, Ti
 AC-SMOTE vs smote        | Mean Rho: 0.6316 vs 0.6302 | Wins:  6, Losses:  4, Ties:  0 | p-value (greater): 0.5000
 AC-SMOTE vs bsmote       | Mean Rho: 0.6316 vs 0.7288 | Wins:  4, Losses:  6, Ties:  0 | p-value (greater): 0.9346
 AC-SMOTE vs adasyn       | Mean Rho: 0.6316 vs 0.6353 | Wins:  7, Losses:  3, Ties:  0 | p-value (greater): 0.2158
-AC-SMOTE vs svmsmote     | Mean Rho: 0.6316 vs 0.7041 | Wins:  4, Losses:  6, Ties:  0 | p-value (greater): 0.9346
-AC-SMOTE vs smotetomek   | Mean Rho: 0.6316 vs 0.6294 | Wins:  6, Losses:  4, Ties:  0 | p-value (greater): 0.3125
+AC-SMOTE vs svmsmote     | Mean Rho: 0.6316 vs 0.7032 | Wins:  4, Losses:  6, Ties:  0 | p-value (greater): 0.9346
+AC-SMOTE vs smotetomek   | Mean Rho: 0.6316 vs 0.6292 | Wins:  6, Losses:  4, Ties:  0 | p-value (greater): 0.3477

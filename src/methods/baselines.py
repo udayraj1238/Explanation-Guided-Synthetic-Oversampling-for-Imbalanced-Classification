@@ -11,9 +11,9 @@ class SafeSVMSMOTE:
         
     def fit_resample(self, X, y):
         n_maj = (y == 0).sum()
-        if n_maj > 2000:
+        if n_maj > 20000:
             from imblearn.under_sampling import RandomUnderSampler
-            rus = RandomUnderSampler(sampling_strategy={0: 2000}, random_state=self.random_state)
+            rus = RandomUnderSampler(sampling_strategy={0: 20000}, random_state=self.random_state)
             X, y = rus.fit_resample(X, y)
         return self.svmsmote.fit_resample(X, y)
 
@@ -23,11 +23,10 @@ class SafeSMOTETomek:
         self.smotetomek = SMOTETomek(random_state=random_state)
         
     def fit_resample(self, X, y):
-        # TomekLinks is O(N^2), creditcard will hang for days.
         n_maj = (y == 0).sum()
-        if n_maj > 2000:
+        if n_maj > 20000:
             from imblearn.under_sampling import RandomUnderSampler
-            rus = RandomUnderSampler(sampling_strategy={0: 2000}, random_state=self.random_state)
+            rus = RandomUnderSampler(sampling_strategy={0: 20000}, random_state=self.random_state)
             X, y = rus.fit_resample(X, y)
         return self.smotetomek.fit_resample(X, y)
 

@@ -6,20 +6,20 @@
         "p": 0.00836104760877176
       },
       "auc_pr": {
-        "stat": 18.911694510739864,
-        "p": 0.008468513386889765
+        "stat": 17.809069212410485,
+        "p": 0.012861792342689027
       },
       "mcc": {
         "stat": 15.770883054892616,
         "p": 0.027294053148793015
       },
       "gmean": {
-        "stat": 25.527446300715965,
-        "p": 0.0006115411073599728
+        "stat": 25.393794749403323,
+        "p": 0.0006459612534919552
       },
       "bal_acc": {
-        "stat": 26.830548926014306,
-        "p": 0.0003575107548796791
+        "stat": 26.295942720763737,
+        "p": 0.0004458702923751062
       }
     },
     "rf": {
@@ -367,12 +367,12 @@
           "significant_after_correction": false
         },
         "auc_pr": {
-          "stat": 23.0,
-          "p": 0.6953125,
+          "stat": 25.0,
+          "p": 0.845703125,
           "wins": 5,
           "losses": 5,
           "ties": 0,
-          "r_rank_biserial": 0.16363636363636364,
+          "r_rank_biserial": 0.09090909090909091,
           "median_diff": 6.479836315327961e-05,
           "p_corr": 1.0,
           "significant_after_correction": false
@@ -430,7 +430,7 @@
           "losses": 7,
           "ties": 0,
           "r_rank_biserial": -0.7818181818181819,
-          "median_diff": -0.004097510281361558,
+          "median_diff": -0.004094050568344776,
           "p_corr": 0.1640625,
           "significant_after_correction": false
         },
@@ -446,24 +446,24 @@
           "significant_after_correction": false
         },
         "gmean": {
-          "stat": 26.0,
-          "p": 0.921875,
+          "stat": 24.0,
+          "p": 0.76953125,
           "wins": 5,
           "losses": 5,
           "ties": 0,
-          "r_rank_biserial": 0.05454545454545454,
-          "median_diff": -3.152501788739048e-05,
+          "r_rank_biserial": 0.12727272727272726,
+          "median_diff": 0.00041862573003315084,
           "p_corr": 1.0,
           "significant_after_correction": false
         },
         "bal_acc": {
-          "stat": 25.0,
-          "p": 0.845703125,
+          "stat": 23.0,
+          "p": 0.6953125,
           "wins": 5,
           "losses": 5,
           "ties": 0,
-          "r_rank_biserial": 0.09090909090909091,
-          "median_diff": -6.432981530768433e-05,
+          "r_rank_biserial": 0.16363636363636364,
+          "median_diff": 0.00037740965717025787,
           "p_corr": 1.0,
           "significant_after_correction": false
         }
@@ -858,14 +858,14 @@
           "significant_after_correction": false
         },
         "bal_acc": {
-          "stat": 15.0,
-          "p": 0.232421875,
+          "stat": 16.0,
+          "p": 0.275390625,
           "wins": 3,
           "losses": 7,
           "ties": 0,
-          "r_rank_biserial": -0.45454545454545453,
+          "r_rank_biserial": -0.41818181818181815,
           "median_diff": -0.005331585267866701,
-          "p_corr": 0.9296875,
+          "p_corr": 1.0,
           "significant_after_correction": false
         }
       }

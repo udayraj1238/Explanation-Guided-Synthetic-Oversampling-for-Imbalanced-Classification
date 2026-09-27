@@ -56,7 +56,7 @@ def run_calibration():
     seed = 42
     
     write_header = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
-    fieldnames = ['dataset', 'classifier', 'resampler', 'fold_id', 'brier_score', 'ece']
+    fieldnames = ['dataset', 'classifier', 'resampler', 'fold_id', 'brier_score', 'ece', 'resampler_failed']
                   
     with open(csv_file, 'a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -108,7 +108,7 @@ def run_calibration():
                         'fold_id': fold_id,
                         'brier_score': float(brier),
                         'ece': float(ece)
-                    })
+                    , 'resampler_failed': resampler_failed})
                     f.flush()
                     completed.add((ds_name, clf_name, res_name, fold_id))
 

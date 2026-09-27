@@ -33,15 +33,18 @@ def run_single_cell(X, y, dataset_name, classifier_name, resampler_name,
             start_time = time.time()
             try:
                 X_train_res, y_train_res = resampler.fit_resample(X_train, y_train)
+                resampler_failed = False
             except Exception as e:
                 # SVMSMOTE and ADASYN can fail on tiny datasets with very few minority neighbors
                 print(f"Warning: {resampler_name} failed on fold {fold_id} (error: {e}). Falling back to no-resampling.")
                 X_train_res, y_train_res = X_train, y_train
+                resampler_failed = True
             fit_time = time.time() - start_time
         else:
             # For 'none', time is essentially 0
             start_time = time.time()
             X_train_res, y_train_res = X_train, y_train
+            resampler_failed = False
             fit_time = time.time() - start_time
             
         # 2. Fit Classifier (ON RESAMPLED TRAIN)
@@ -64,7 +67,8 @@ def run_single_cell(X, y, dataset_name, classifier_name, resampler_name,
             "classifier": classifier_name,
             "resampler": resampler_name,
             "fold_id": fold_id,
-            "fit_time_seconds": fit_time
+            "fit_time_seconds": fit_time,
+            "resampler_failed": resampler_failed
         })
         
         results.append(metrics)

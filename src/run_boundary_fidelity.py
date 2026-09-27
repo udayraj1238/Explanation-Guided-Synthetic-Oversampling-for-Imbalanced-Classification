@@ -41,7 +41,7 @@ def run_boundary_fidelity():
     grid = list(product(dataset_names, classifiers))
     
     write_header = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
-    fieldnames = ['dataset', 'classifier', 'resampler', 'fold_id', 'spearman_rho', 'spearman_p']
+    fieldnames = ['dataset', 'classifier', 'resampler', 'fold_id', 'spearman_rho', 'spearman_p', 'resampler_failed']
                   
     with open(csv_file, 'a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -85,6 +85,7 @@ def run_boundary_fidelity():
                             X_res, y_res = X_train, y_train
                     else:
                         X_res, y_res = X_train, y_train
+                        resampler_failed = False
                         
                     clf_M = get_classifier(clf_name, seed).fit(X_res, y_res)
                     M_importance = get_shap_importance(clf_M, X_test_shap)
@@ -103,7 +104,7 @@ def run_boundary_fidelity():
                         'fold_id': fold_id,
                         'spearman_rho': float(rho),
                         'spearman_p': float(p)
-                    })
+                    , 'resampler_failed': resampler_failed})
                     f.flush()
                     completed.add((ds_name, clf_name, res_name, fold_id))
 

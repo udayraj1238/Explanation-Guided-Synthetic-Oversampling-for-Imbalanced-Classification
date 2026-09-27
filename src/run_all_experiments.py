@@ -42,7 +42,7 @@ def main(dry_run=False):
     
     fieldnames = [
         'dataset', 'classifier', 'resampler', 'fold_id', 
-        'f1', 'auc_pr', 'mcc', 'gmean', 'bal_acc', 'fit_time_seconds'
+        'f1', 'auc_pr', 'mcc', 'gmean', 'bal_acc', 'fit_time_seconds', 'resampler_failed'
     ]
     
     with open(csv_file, 'a', newline='') as f:

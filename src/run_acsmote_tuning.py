@@ -46,7 +46,7 @@ def run_acsmote_tuning():
     
     write_header = not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0
     fieldnames = ['dataset', 'classifier', 'fold_id', 'alpha_star', 'beta_star', 
-                  'f1', 'auc_pr', 'mcc', 'gmean', 'bal_acc']
+                  'f1', 'auc_pr', 'mcc', 'gmean', 'bal_acc', 'resampler_failed']
                   
     with open(csv_file, 'a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

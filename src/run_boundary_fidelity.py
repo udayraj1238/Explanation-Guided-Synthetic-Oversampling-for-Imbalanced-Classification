@@ -80,9 +80,11 @@ def run_boundary_fidelity():
                         resampler = get_resampler(res_name, seed)
                         try:
                             X_res, y_res = resampler.fit_resample(X_train, y_train)
+                            resampler_failed = False
                         except Exception as e:
                             print(f"Warning: {res_name} failed on {ds_name} fold {fold_id} (error: {e})")
                             X_res, y_res = X_train, y_train
+                            resampler_failed = True
                     else:
                         X_res, y_res = X_train, y_train
                         resampler_failed = False

@@ -1,0 +1,198 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{booktabs,longtable,array}
+\usepackage[T1]{fontenc}
+\setlength{\tabcolsep}{4pt}
+\begin{document}
+\title{Supplementary Tables for ``Attribution-Constrained SMOTE: A Controlled Evaluation of Explanation-Guided Oversampling for Imbalanced Classification}
+\author{Uday Raj and Monika Sharma}\date{}\maketitle
+\noindent All tables are computed from the per-fold results released with the code (dataset-level means over 15 folds; $N=10$ datasets). AC-SMOTE is compared with each baseline by a two-sided exact Wilcoxon signed-rank test. Holm and Benjamini--Hochberg (BH) adjustments are applied within a family of seven comparisons (one setting, one metric). Median diff.\ is the median dataset-level difference (AC-SMOTE minus baseline); $r_{rb}$ is the matched-pairs rank-biserial correlation. Settings: LR = Logistic Regression on raw features; LR-std = standardized features (exploratory, seed 42).
+\section*{S1. Equivalence tests: AC-SMOTE versus SMOTE}
+\noindent TOST: two one-sided Wilcoxon signed-rank tests against margins $\pm\delta$; the reported $p$ is the larger of the two, Holm-adjusted across the four settings. CI: 95\% percentile bootstrap interval of the median (20\,000 resamples). Min.\ det.\ diff.: smallest difference detectable at 80\% power by a paired $t$-test with the observed standard deviation of the differences, $N=10$ (an approximation). Margins were chosen after the data were seen.
+\begin{center}\small\begin{tabular}{@{}llrrrrrrr@{}}\toprule Metric & Setting & Median & CI low & CI high & Min.\ det. & $p_{0.01}$ & $p_{0.02}$ & SD diff. \\ \midrule
+G-mean & LR & +0.0007 & -0.0013 & +0.0051 & 0.0066 & 0.009 & 0.004 & 0.0066 \\
+G-mean & RF & +0.0010 & -0.0109 & +0.0075 & 0.0228 & 0.116 & 0.053 & 0.0230 \\
+G-mean & XGB & -0.0012 & -0.0091 & +0.0012 & 0.0128 & 0.084 & 0.004 & 0.0129 \\
+G-mean & LR-std & -0.0019 & -0.0051 & -0.0011 & 0.0034 & 0.008 & 0.004 & 0.0035 \\
+Balanced accuracy & LR & +0.0006 & -0.0009 & +0.0049 & 0.0058 & 0.009 & 0.004 & 0.0059 \\
+Balanced accuracy & RF & +0.0005 & -0.0104 & +0.0046 & 0.0098 & 0.024 & 0.004 & 0.0099 \\
+Balanced accuracy & XGB & -0.0010 & -0.0072 & +0.0008 & 0.0066 & 0.010 & 0.004 & 0.0066 \\
+Balanced accuracy & LR-std & -0.0018 & -0.0051 & -0.0010 & 0.0031 & 0.004 & 0.004 & 0.0031 \\
+\bottomrule\end{tabular}\end{center}
+\section*{S2. Pairwise comparisons: F1}
+\begin{center}\footnotesize\begin{longtable}{@{}llcrrrrr@{}}\toprule Setting & Baseline & W/L/T & Median diff. & $p$ (raw) & $p$ (Holm) & $p$ (BH) & $r_{rb}$ \\ \midrule\endhead
+LR & None & 6/4/0 & +0.0149 & 0.625 & 1.000 & 0.729 & +0.20 \\
+ & ROS & 9/1/0 & +0.0053 & 0.010 & 0.068 & 0.046 & +0.89 \\
+ & SMOTE & 3/7/0 & -0.0019 & 0.375 & 1.000 & 0.525 & -0.35 \\
+ & Borderline-SMOTE & 7/3/0 & +0.0054 & 0.846 & 1.000 & 0.846 & +0.09 \\
+ & ADASYN & 8/2/0 & +0.0102 & 0.020 & 0.098 & 0.046 & +0.82 \\
+ & SVM-SMOTE & 1/9/0 & -0.0154 & 0.014 & 0.082 & 0.046 & -0.85 \\
+ & SMOTE-Tomek & 2/8/0 & -0.0025 & 0.105 & 0.422 & 0.185 & -0.60 \\
+\midrule
+RF & None & 7/3/0 & +0.0451 & 0.084 & 0.588 & 0.542 & +0.64 \\
+ & ROS & 5/5/0 & +0.0059 & 0.557 & 1.000 & 0.811 & +0.24 \\
+ & SMOTE & 3/7/0 & -0.0018 & 0.232 & 1.000 & 0.542 & -0.45 \\
+ & Borderline-SMOTE & 5/5/0 & -0.0015 & 0.922 & 1.000 & 0.922 & -0.05 \\
+ & ADASYN & 6/4/0 & +0.0025 & 0.160 & 0.961 & 0.542 & +0.53 \\
+ & SVM-SMOTE & 3/7/0 & -0.0041 & 0.625 & 1.000 & 0.811 & -0.20 \\
+ & SMOTE-Tomek & 5/5/0 & -0.0004 & 0.695 & 1.000 & 0.811 & -0.16 \\
+\midrule
+XGB & None & 7/3/0 & +0.0191 & 0.084 & 0.588 & 0.588 & +0.64 \\
+ & ROS & 6/4/0 & +0.0033 & 0.695 & 1.000 & 0.770 & +0.16 \\
+ & SMOTE & 3/7/0 & -0.0012 & 0.375 & 1.000 & 0.770 & -0.35 \\
+ & Borderline-SMOTE & 3/7/0 & -0.0066 & 0.695 & 1.000 & 0.770 & -0.16 \\
+ & ADASYN & 6/4/0 & +0.0034 & 0.375 & 1.000 & 0.770 & +0.35 \\
+ & SVM-SMOTE & 4/6/0 & -0.0057 & 0.770 & 1.000 & 0.770 & -0.13 \\
+ & SMOTE-Tomek & 5/5/0 & +0.0008 & 0.770 & 1.000 & 0.770 & +0.13 \\
+\midrule
+LR-std & None & 5/5/0 & +0.0032 & 0.922 & 1.000 & 0.922 & +0.05 \\
+ & ROS & 4/6/0 & -0.0006 & 0.492 & 1.000 & 0.689 & -0.27 \\
+ & SMOTE & 0/10/0 & -0.0037 & 0.002 & \textbf{0.014} & 0.007 & -1.00 \\
+ & Borderline-SMOTE & 5/5/0 & +0.0010 & 0.695 & 1.000 & 0.811 & -0.16 \\
+ & ADASYN & 7/3/0 & +0.0054 & 0.084 & 0.336 & 0.147 & +0.64 \\
+ & SVM-SMOTE & 0/10/0 & -0.0180 & 0.002 & \textbf{0.014} & 0.007 & -1.00 \\
+ & SMOTE-Tomek & 1/9/0 & -0.0042 & 0.004 & \textbf{0.020} & 0.009 & -0.96 \\
+\midrule
+\bottomrule\end{longtable}\end{center}
+\section*{S3. Pairwise comparisons: AUC-PR}
+\begin{center}\footnotesize\begin{longtable}{@{}llcrrrrr@{}}\toprule Setting & Baseline & W/L/T & Median diff. & $p$ (raw) & $p$ (Holm) & $p$ (BH) & $r_{rb}$ \\ \midrule\endhead
+LR & None & 4/6/0 & -0.0074 & 0.557 & 1.000 & 0.649 & -0.24 \\
+ & ROS & 8/2/0 & +0.0020 & 0.232 & 0.930 & 0.407 & +0.45 \\
+ & SMOTE & 4/6/0 & -0.0014 & 0.375 & 1.000 & 0.525 & -0.35 \\
+ & Borderline-SMOTE & 9/1/0 & +0.0066 & 0.014 & 0.096 & 0.096 & +0.85 \\
+ & ADASYN & 8/2/0 & +0.0054 & 0.064 & 0.322 & 0.150 & +0.67 \\
+ & SVM-SMOTE & 5/5/0 & +0.0001 & 0.846 & 1.000 & 0.846 & +0.09 \\
+ & SMOTE-Tomek & 3/7/0 & -0.0041 & 0.027 & 0.164 & 0.096 & -0.78 \\
+\midrule
+RF & None & 4/6/0 & -0.0066 & 0.375 & 1.000 & 0.525 & -0.35 \\
+ & ROS & 3/7/0 & -0.0030 & 0.322 & 1.000 & 0.525 & -0.38 \\
+ & SMOTE & 5/5/0 & +0.0007 & 0.695 & 1.000 & 0.811 & -0.16 \\
+ & Borderline-SMOTE & 8/2/0 & +0.0068 & 0.084 & 0.588 & 0.525 & +0.64 \\
+ & ADASYN & 6/4/0 & +0.0028 & 0.275 & 1.000 & 0.525 & +0.42 \\
+ & SVM-SMOTE & 4/6/0 & -0.0037 & 0.375 & 1.000 & 0.525 & -0.35 \\
+ & SMOTE-Tomek & 5/5/0 & +0.0007 & 1.000 & 1.000 & 1.000 & +0.02 \\
+\midrule
+XGB & None & 6/4/0 & +0.0029 & 0.695 & 1.000 & 0.846 & +0.16 \\
+ & ROS & 8/2/0 & +0.0028 & 0.193 & 1.000 & 0.677 & +0.49 \\
+ & SMOTE & 4/6/0 & -0.0007 & 0.846 & 1.000 & 0.846 & -0.09 \\
+ & Borderline-SMOTE & 7/3/0 & +0.0041 & 0.322 & 1.000 & 0.752 & +0.38 \\
+ & ADASYN & 9/1/0 & +0.0041 & 0.004 & \textbf{0.027} & 0.027 & +0.96 \\
+ & SVM-SMOTE & 4/6/0 & -0.0094 & 0.492 & 1.000 & 0.846 & -0.27 \\
+ & SMOTE-Tomek & 4/6/0 & -0.0026 & 0.770 & 1.000 & 0.846 & -0.13 \\
+\midrule
+LR-std & None & 1/9/0 & -0.0111 & 0.014 & 0.096 & 0.096 & -0.85 \\
+ & ROS & 8/2/0 & +0.0016 & 0.275 & 1.000 & 0.386 & +0.42 \\
+ & SMOTE & 3/7/0 & -0.0008 & 0.160 & 0.961 & 0.374 & -0.53 \\
+ & Borderline-SMOTE & 7/3/0 & +0.0040 & 0.492 & 1.000 & 0.574 & +0.27 \\
+ & ADASYN & 6/4/0 & +0.0027 & 0.275 & 1.000 & 0.386 & +0.42 \\
+ & SVM-SMOTE & 6/4/0 & +0.0002 & 0.695 & 1.000 & 0.695 & -0.16 \\
+ & SMOTE-Tomek & 3/7/0 & -0.0006 & 0.160 & 0.961 & 0.374 & -0.53 \\
+\midrule
+\bottomrule\end{longtable}\end{center}
+\section*{S4. Pairwise comparisons: MCC}
+\begin{center}\footnotesize\begin{longtable}{@{}llcrrrrr@{}}\toprule Setting & Baseline & W/L/T & Median diff. & $p$ (raw) & $p$ (Holm) & $p$ (BH) & $r_{rb}$ \\ \midrule\endhead
+LR & None & 6/4/0 & +0.0061 & 0.557 & 1.000 & 0.649 & +0.24 \\
+ & ROS & 9/1/0 & +0.0055 & 0.020 & 0.137 & 0.068 & +0.82 \\
+ & SMOTE & 3/7/0 & -0.0018 & 0.770 & 1.000 & 0.770 & -0.13 \\
+ & Borderline-SMOTE & 7/3/0 & +0.0095 & 0.492 & 1.000 & 0.649 & +0.27 \\
+ & ADASYN & 9/1/0 & +0.0119 & 0.020 & 0.137 & 0.068 & +0.82 \\
+ & SVM-SMOTE & 2/8/0 & -0.0094 & 0.064 & 0.322 & 0.150 & -0.67 \\
+ & SMOTE-Tomek & 2/8/0 & -0.0020 & 0.275 & 1.000 & 0.482 & -0.42 \\
+\midrule
+RF & None & 6/4/0 & +0.0221 & 0.275 & 1.000 & 0.643 & +0.42 \\
+ & ROS & 5/5/0 & -0.0005 & 1.000 & 1.000 & 1.000 & +0.02 \\
+ & SMOTE & 2/8/0 & -0.0015 & 0.193 & 1.000 & 0.643 & -0.49 \\
+ & Borderline-SMOTE & 5/5/0 & -0.0028 & 0.770 & 1.000 & 1.000 & -0.13 \\
+ & ADASYN & 7/3/0 & +0.0019 & 0.105 & 0.738 & 0.643 & +0.60 \\
+ & SVM-SMOTE & 3/7/0 & -0.0109 & 0.492 & 1.000 & 0.861 & -0.27 \\
+ & SMOTE-Tomek & 5/5/0 & -0.0008 & 0.922 & 1.000 & 1.000 & -0.05 \\
+\midrule
+XGB & None & 6/4/0 & +0.0147 & 0.432 & 1.000 & 0.846 & +0.31 \\
+ & ROS & 6/4/0 & +0.0037 & 0.770 & 1.000 & 0.846 & +0.13 \\
+ & SMOTE & 4/6/0 & -0.0022 & 0.492 & 1.000 & 0.846 & -0.27 \\
+ & Borderline-SMOTE & 3/7/0 & -0.0071 & 0.846 & 1.000 & 0.846 & -0.09 \\
+ & ADASYN & 7/3/0 & +0.0044 & 0.193 & 1.000 & 0.846 & +0.49 \\
+ & SVM-SMOTE & 5/5/0 & -0.0046 & 0.846 & 1.000 & 0.846 & -0.09 \\
+ & SMOTE-Tomek & 6/4/0 & +0.0039 & 0.557 & 1.000 & 0.846 & +0.24 \\
+\midrule
+LR-std & None & 4/6/0 & -0.0100 & 0.922 & 1.000 & 0.922 & -0.05 \\
+ & ROS & 3/7/0 & -0.0009 & 0.432 & 1.000 & 0.604 & -0.31 \\
+ & SMOTE & 0/10/0 & -0.0040 & 0.002 & \textbf{0.014} & 0.014 & -1.00 \\
+ & Borderline-SMOTE & 6/4/0 & +0.0060 & 0.557 & 1.000 & 0.649 & +0.24 \\
+ & ADASYN & 7/3/0 & +0.0066 & 0.131 & 0.523 & 0.229 & +0.56 \\
+ & SVM-SMOTE & 1/9/0 & -0.0188 & 0.020 & 0.098 & 0.046 & -0.82 \\
+ & SMOTE-Tomek & 1/9/0 & -0.0040 & 0.004 & \textbf{0.023} & 0.014 & -0.96 \\
+\midrule
+\bottomrule\end{longtable}\end{center}
+\section*{S5. Pairwise comparisons: G-mean}
+\begin{center}\footnotesize\begin{longtable}{@{}llcrrrrr@{}}\toprule Setting & Baseline & W/L/T & Median diff. & $p$ (raw) & $p$ (Holm) & $p$ (BH) & $r_{rb}$ \\ \midrule\endhead
+LR & None & 10/0/0 & +0.2577 & 0.002 & \textbf{0.014} & 0.014 & +1.00 \\
+ & ROS & 6/4/0 & +0.0009 & 0.275 & 1.000 & 0.482 & +0.42 \\
+ & SMOTE & 6/4/0 & +0.0007 & 0.492 & 1.000 & 0.574 & +0.27 \\
+ & Borderline-SMOTE & 9/1/0 & +0.0043 & 0.037 & 0.223 & 0.130 & +0.75 \\
+ & ADASYN & 8/2/0 & +0.0030 & 0.105 & 0.527 & 0.246 & +0.60 \\
+ & SVM-SMOTE & 6/4/0 & +0.0024 & 0.492 & 1.000 & 0.574 & +0.27 \\
+ & SMOTE-Tomek & 5/5/0 & +0.0004 & 0.770 & 1.000 & 0.770 & +0.13 \\
+\midrule
+RF & None & 10/0/0 & +0.1151 & 0.002 & \textbf{0.014} & 0.014 & +1.00 \\
+ & ROS & 8/2/0 & +0.0508 & 0.037 & 0.223 & 0.087 & +0.75 \\
+ & SMOTE & 6/4/0 & +0.0010 & 1.000 & 1.000 & 1.000 & +0.02 \\
+ & Borderline-SMOTE & 7/3/0 & +0.0118 & 0.037 & 0.223 & 0.087 & +0.75 \\
+ & ADASYN & 4/6/0 & -0.0010 & 0.846 & 1.000 & 0.987 & -0.09 \\
+ & SVM-SMOTE & 4/6/0 & -0.0063 & 0.695 & 1.000 & 0.973 & -0.16 \\
+ & SMOTE-Tomek & 4/6/0 & -0.0115 & 0.275 & 1.000 & 0.482 & -0.42 \\
+\midrule
+XGB & None & 10/0/0 & +0.0501 & 0.002 & \textbf{0.014} & 0.014 & +1.00 \\
+ & ROS & 7/3/0 & +0.0163 & 0.084 & 0.504 & 0.294 & +0.64 \\
+ & SMOTE & 4/6/0 & -0.0012 & 0.375 & 1.000 & 0.656 & -0.35 \\
+ & Borderline-SMOTE & 5/5/0 & -0.0000 & 1.000 & 1.000 & 1.000 & -0.02 \\
+ & ADASYN & 5/5/0 & +0.0004 & 0.922 & 1.000 & 1.000 & +0.05 \\
+ & SVM-SMOTE & 4/6/0 & -0.0059 & 0.275 & 1.000 & 0.643 & -0.42 \\
+ & SMOTE-Tomek & 4/6/0 & -0.0030 & 0.492 & 1.000 & 0.689 & -0.27 \\
+\midrule
+LR-std & None & 10/0/0 & +0.1819 & 0.002 & \textbf{0.014} & 0.007 & +1.00 \\
+ & ROS & 2/8/0 & -0.0009 & 0.232 & 0.697 & 0.325 & -0.45 \\
+ & SMOTE & 1/9/0 & -0.0019 & 0.006 & \textbf{0.029} & 0.014 & -0.93 \\
+ & Borderline-SMOTE & 7/3/0 & +0.0063 & 0.037 & 0.148 & 0.065 & +0.75 \\
+ & ADASYN & 6/4/0 & +0.0011 & 0.695 & 1.000 & 0.695 & +0.16 \\
+ & SVM-SMOTE & 4/6/0 & -0.0011 & 0.625 & 1.000 & 0.695 & +0.20 \\
+ & SMOTE-Tomek & 0/10/0 & -0.0022 & 0.002 & \textbf{0.014} & 0.007 & -1.00 \\
+\midrule
+\bottomrule\end{longtable}\end{center}
+\section*{S6. Pairwise comparisons: Balanced accuracy}
+\begin{center}\footnotesize\begin{longtable}{@{}llcrrrrr@{}}\toprule Setting & Baseline & W/L/T & Median diff. & $p$ (raw) & $p$ (Holm) & $p$ (BH) & $r_{rb}$ \\ \midrule\endhead
+LR & None & 10/0/0 & +0.1816 & 0.002 & \textbf{0.014} & 0.014 & +1.00 \\
+ & ROS & 7/3/0 & +0.0013 & 0.160 & 0.641 & 0.280 & +0.53 \\
+ & SMOTE & 6/4/0 & +0.0006 & 0.432 & 1.000 & 0.604 & +0.31 \\
+ & Borderline-SMOTE & 9/1/0 & +0.0032 & 0.037 & 0.223 & 0.130 & +0.75 \\
+ & ADASYN & 8/2/0 & +0.0028 & 0.105 & 0.527 & 0.246 & +0.60 \\
+ & SVM-SMOTE & 5/5/0 & -0.0005 & 0.922 & 1.000 & 0.922 & +0.05 \\
+ & SMOTE-Tomek & 5/5/0 & +0.0004 & 0.695 & 1.000 & 0.811 & +0.16 \\
+\midrule
+RF & None & 10/0/0 & +0.0572 & 0.002 & \textbf{0.014} & 0.014 & +1.00 \\
+ & ROS & 8/2/0 & +0.0291 & 0.027 & 0.137 & 0.064 & +0.78 \\
+ & SMOTE & 5/5/0 & +0.0005 & 0.922 & 1.000 & 1.000 & -0.05 \\
+ & Borderline-SMOTE & 8/2/0 & +0.0097 & 0.020 & 0.117 & 0.064 & +0.82 \\
+ & ADASYN & 4/6/0 & -0.0006 & 1.000 & 1.000 & 1.000 & -0.02 \\
+ & SVM-SMOTE & 3/7/0 & -0.0051 & 0.625 & 1.000 & 0.875 & -0.20 \\
+ & SMOTE-Tomek & 3/7/0 & -0.0053 & 0.275 & 1.000 & 0.482 & -0.42 \\
+\midrule
+XGB & None & 9/1/0 & +0.0386 & 0.004 & \textbf{0.027} & 0.027 & +0.96 \\
+ & ROS & 7/3/0 & +0.0131 & 0.084 & 0.504 & 0.294 & +0.64 \\
+ & SMOTE & 3/7/0 & -0.0010 & 0.232 & 1.000 & 0.407 & -0.45 \\
+ & Borderline-SMOTE & 4/6/0 & -0.0005 & 1.000 & 1.000 & 1.000 & +0.02 \\
+ & ADASYN & 5/5/0 & +0.0005 & 0.922 & 1.000 & 1.000 & -0.05 \\
+ & SVM-SMOTE & 4/6/0 & -0.0027 & 0.432 & 1.000 & 0.604 & -0.31 \\
+ & SMOTE-Tomek & 4/6/0 & -0.0026 & 0.232 & 1.000 & 0.407 & -0.45 \\
+\midrule
+LR-std & None & 10/0/0 & +0.1428 & 0.002 & \textbf{0.014} & 0.007 & +1.00 \\
+ & ROS & 2/8/0 & -0.0009 & 0.232 & 0.697 & 0.325 & -0.45 \\
+ & SMOTE & 1/9/0 & -0.0018 & 0.006 & \textbf{0.029} & 0.014 & -0.93 \\
+ & Borderline-SMOTE & 8/2/0 & +0.0049 & 0.037 & 0.148 & 0.065 & +0.75 \\
+ & ADASYN & 5/5/0 & -0.0003 & 0.770 & 1.000 & 0.770 & +0.13 \\
+ & SVM-SMOTE & 4/6/0 & -0.0012 & 0.695 & 1.000 & 0.770 & +0.16 \\
+ & SMOTE-Tomek & 0/10/0 & -0.0024 & 0.002 & \textbf{0.014} & 0.007 & -1.00 \\
+\midrule
+\bottomrule\end{longtable}\end{center}
+\noindent Bold: Holm-adjusted $p<0.05$ within its family of seven.
+\end{document}

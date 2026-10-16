@@ -107,7 +107,7 @@ with $\beta\in[0,1]$. For $\beta\in[0,1]$ the factor $1-\beta\hat{w}_j$ lies in 
 \textit{Cost.} Phase~1 costs one forest fit plus TreeSHAP, $O(TLD^2)$ per explained instance \cite{lundberg2020local}; Phase~2 costs $O(n_{\min}^2 d)$ time and $O(n_{\min}^2)$ memory, which limits very large minority classes; Phase~3 costs $O(md)$ for $m$ generated points.
 
 \subsection{Data, Methods and Classifiers}\label{sec:setup}
-Table~\ref{tab:data} lists the ten datasets by imbalance ratio (IR). Eight come from the imbalanced-learn benchmark collection \cite{lemaitre2017imbalanced}; credit-card fraud and telco churn are real-world sets from Kaggle (telco categoricals one-hot encoded, missing \texttt{TotalCharges} set to zero). The sets cover IR 2.8 to 578 and 6 to 93 features; no further selection criterion was applied. Features are used as provided, so every resampler receives identical input; a standardized LR rerun is in Section~\ref{sec:std}.
+Table~\ref{tab:data} lists the ten datasets by imbalance ratio (IR). Eight come from the imbalanced-learn benchmark collection \cite{lemaitre2017imbalanced}; credit-card fraud and telco churn are real-world sets (the \texttt{Time} column in credit-card fraud is not used, giving $d=29$; telco categoricals one-hot encoded, missing \texttt{TotalCharges} set to zero). The sets cover IR 2.8 to 578 and 6 to 93 features; no further selection criterion was applied. Features are used as provided, so every resampler receives identical input; a standardized LR rerun is in Section~\ref{sec:std}.
 
 \begin{table}[t]
 \caption{Datasets (minority $n_{\min}$, majority $n_{\max}$, imbalance ratio)}\label{tab:data}
